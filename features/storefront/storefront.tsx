@@ -134,14 +134,11 @@ export function Storefront() {
   const [category, setCategory] =
     useState<ProductCategory | "">("");
 
-  const [nafdacVerifiable, setNafdacVerifiable] =
-    useState(false);
+  const [nafdacVerifiable, setNafdacVerifiable] = useState(false);
 
-  const [sort, setSort] =
-    useState("trusted");
+  const [sort, setSort] = useState("trusted");
 
-  const [page, setPage] =
-    useState(1);
+  const [page, setPage] = useState(1);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["products", category, nafdacVerifiable],
@@ -157,7 +154,6 @@ export function Storefront() {
         if (sort === "new") {
           return b.id.localeCompare(a.id);
         }
-
         return 0;
       });
   }, [
@@ -171,10 +167,7 @@ export function Storefront() {
     setPage(1);
   };
 
-  const chips = [
-    category && labels[category],
-    nafdacVerifiable && "NAFDAC VERIFIABLE",
-  ].filter(Boolean);
+  const chips = [ category && labels[category], nafdacVerifiable && "NAFDAC VERIFIABLE",].filter(Boolean);
 
   return (
     <>
@@ -195,8 +188,7 @@ export function Storefront() {
               nafdacVerifiable
                 ? "bg-white text-neutral-900"
                 : "border border-neutral-600"
-            }`}
-          >
+            }`}>
             NAFDAC VERIFIABLE
           </button>
 

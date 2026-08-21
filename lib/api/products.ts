@@ -2,8 +2,10 @@
 
 import type { BackendProduct, Product,ProductCategory,} from "@/lib/domain/product";
 
-const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
-const API_ROOT = `${API_ORIGIN}/api/v1`;
+const API_ORIGIN = (
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000"
+).replace(/\/$/, "");
+const API_ROOT = `${API_ORIGIN}/api`;
 
 export interface CreateProductInput {
   name: string;
@@ -148,6 +150,12 @@ export async function createProduct(
   formData.append("price", String(input.price));
   formData.append("size", input.size);
 
+  const angles = ["front", "left", "back", "right"].slice(
+    0,
+    input.photos.length,
+  );
+  formData.append("angles", JSON.stringify(angles));
+
   input.photos.forEach((photo) => {
     formData.append("photos", photo);
   });
@@ -246,6 +254,41 @@ export async function generateProductModel(
   };
 }
 
+export async function getProductGenerationStatus(
+  productId: string,
+): Promise<{
+  productId: string;
+  modelUrl: string | null;
+  modelStatus: Product["modelStatus"];
+  modelProgress: number;
+}> {
+  const response = await fetch(`${API_ROOT}/products/${productId}/status`, {
+    cache: "no-store",
+  });
+
+  const data = (await response.json().catch(() => null)) as
+    | BackendProduct
+    | { error?: string }
+    | null;
+
+  if (!response.ok || !data || !("id" in data)) {
+    throw new Error(
+      data && "error" in data
+        ? data.error ?? "Unable to check model generation status."
+        : "Unable to check model generation status.",
+    );
+  }
+
+  return {
+    productId: data.id,
+    modelUrl: resolveBackendUrl(data.modelUrl ?? data.modelUrls?.glb),
+    modelStatus: data.modelUrl || data.modelUrls?.glb
+      ? "ready"
+      : mapModelStatus(data.status),
+    modelProgress: data.progress ?? 0,
+  };
+}
+
 /**
  * Get the generation status for a product.
  *
@@ -285,22 +328,37 @@ export async function getProducts(
   return data.map(mapBackendProduct);
 }
 
-/**
- * Get one product by ID.
- *
- * Since the current backend doesn't expose
- * GET /api/products/:id, we get the list and find it.
- */
+/** Get one product by ID from the backend detail endpoint. */
 export async function getProductById(
   productId: string,
 ): Promise<Product | null> {
-  const products = await getProducts();
+  const response = await fetch(`${API_ROOT}/products/${productId}`, {
+    cache: "no-store",
+  });
 
-  return (
-    products.find(
-      (product) => product.id === productId,
-    ) ?? null
-  );
+  if (response.status === 404) return null;
+
+  const data = (await response.json().catch(() => null)) as
+    | BackendProduct
+    | { error?: string; message?: string }
+    | null;
+
+  if (!response.ok) {
+    const message =
+      data && "error" in data
+        ? data.error
+        : data && "message" in data
+          ? data.message
+          : undefined;
+
+    throw new Error(message ?? "Unable to fetch product.");
+  }
+
+  if (!data || !("id" in data)) {
+    throw new Error("The server returned an invalid product.");
+  }
+
+  return mapBackendProduct(data);
 }
 
 export const getProduct = getProductById;

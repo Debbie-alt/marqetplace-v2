@@ -7,7 +7,10 @@ import { Check, ImagePlus, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Brand, FieldLabel, PrimaryButton,} from "@/components/ui";
-import { createProduct } from "@/lib/api/products";
+import {
+  createProduct,
+  getProductGenerationStatus,
+} from "@/lib/api/products";
 import type { ListingDraft } from "@/lib/api/seller";
 import type { ProductCategory } from "@/lib/domain/product";
 
@@ -180,6 +183,8 @@ export function NewListing() {
       "idle" | "uploading" | "success" | "failed"
     >("idle");
 
+  const [generationProgress, setGenerationProgress] = useState(0);
+
   const [error, setError] = useState<string | null>(null);
 
   const update = <K extends keyof ListingDraft>(
@@ -192,6 +197,28 @@ export function NewListing() {
     }));
   };
 
+  const pollGeneration = async (productId: string) => {
+    for (let attempt = 0; attempt < 120; attempt += 1) {
+      const status = await getProductGenerationStatus(productId);
+      setGenerationProgress(status.modelProgress);
+
+      if (status.modelStatus === "ready") {
+        setGenerationProgress(100);
+        setGenerationStatus("success");
+        window.setTimeout(() => router.push(`/products/${productId}`), 1500);
+        return;
+      }
+
+      if (status.modelStatus === "failed") {
+        throw new Error("3D model generation failed.");
+      }
+
+      await new Promise((resolve) => window.setTimeout(resolve, 3000));
+    }
+
+    throw new Error("Model generation is taking longer than expected.");
+  };
+
 
 
   const createProductMutation = useMutation({
@@ -202,9 +229,22 @@ export function NewListing() {
       setGenerationStatus("uploading");
     },
 
-    onSuccess: () => {
-      setGenerationStatus("success");
-      window.setTimeout(() => router.push("/"), 1500);
+    onSuccess: async (result) => {
+      try {
+        if (!result.productId) {
+          throw new Error("The server did not return a product ID.");
+        }
+
+        setGenerationProgress(0);
+        await pollGeneration(result.productId);
+      } catch (pollError) {
+        setGenerationStatus("failed");
+        setError(
+          pollError instanceof Error
+            ? pollError.message
+            : "Unable to generate the 3D model.",
+        );
+      }
     },
 
     onError: (error) => {
@@ -633,9 +673,9 @@ export function NewListing() {
                 <div className="flex items-center gap-3">
                   <Loader2 className="size-5 animate-spin" />
                   <div>
-                    <p className="text-sm font-bold">Publishing listing...</p>
+                    <p className="text-sm font-bold">Generating 3D model...</p>
                     <p className="mt-1 text-xs text-neutral-400">
-                      Your 3D model will continue generating on the backend.
+                      This may take several minutes. Progress: {generationProgress}%
                     </p>
                   </div>
                 </div>
