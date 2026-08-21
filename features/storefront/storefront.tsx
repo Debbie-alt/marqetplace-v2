@@ -26,7 +26,7 @@ function Card({ product }: { product: Product }) {
   const [added, setAdded] = useState(false);
   const wish = wishlist.has(product.id);
 
-  const has3DModel =  product.modelStatus === "ready" &&  Boolean(product.modelUrl);
+  const has3DModel =  Boolean(product.modelUrl);
 
   const isGenerating =
     product.modelStatus === "generating" ||
@@ -51,27 +51,22 @@ function Card({ product }: { product: Product }) {
         )}
 
         {product.isNafdacVerifiable && (
-          <span className="absolute left-1 top-1 flex items-center gap-1 bg-white px-2 py-1 text-[8px] font-bold text-emerald-500">
+          <span className="absolute left-1 top-1 flex items-center gap-1 bg-white px-2 py-1 text-sm font-bold text-emerald-500">
             <Check className="size-2" />
             CHECK AUTHENTICITY
           </span>
         )}
 
         {has3DModel && (
-          <span className="absolute right-1 top-1 rounded-full bg-neutral-900 px-2 py-1 text-[8px] font-bold text-white">
+          <span className="absolute right-1 top-1 rounded-full bg-neutral-900 px-2 py-1 text-sm font-bold text-white">
             3D AVAILABLE
           </span>
         )}
 
-        {isGenerating && (
-          <span className="absolute right-1 top-1 rounded-full bg-sky-300 px-2 py-1 text-[8px] font-bold text-neutral-900">
-            {product.modelProgress ?? 0}% · GENERATING
-          </span>
-        )}
       </Link>
 
       <div className="pt-3">
-        <p className="text-[8px] font-black uppercase">
+        <p className="text-sm font-black uppercase">
           {labels[product.category]}
         </p>
 
@@ -120,11 +115,7 @@ function Card({ product }: { product: Product }) {
             onClick={() =>
               toggleWishlist(product.id)
             }
-            className={`transition ${
-              wish
-                ? "scale-110 text-red-500"
-                : "text-neutral-400"
-            }`}
+            className={`transition ${wish ? "scale-110 text-red-500" : "text-neutral-400"}`}
           >
             <Heart
               className="size-4"

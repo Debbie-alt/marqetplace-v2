@@ -302,11 +302,8 @@ export function NewListing() {
                       category.value
                         ? "border-sky-300 bg-sky-50"
                         : ""
-                    }`}
-                  >
-                    <span className="mb-2 block text-xl">
-                      {category.icon}
-                    </span>
+                    }`}>
+                    <span className="mb-2 block text-xl">{category.icon} </span>
 
                     {category.label}
                   </button>
@@ -690,11 +687,9 @@ export function NewListing() {
                 type="button"
                 disabled={isPublishing}
                 onClick={() => setStep(2)}
-                className="rounded-full border px-5 py-3 disabled:opacity-50"
-              >
+                className="rounded-full border px-5 py-3 disabled:opacity-50">
                 ← Back
               </button>
-
               <PrimaryButton
                 disabled={
                   !confirmations.every(Boolean) ||
