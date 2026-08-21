@@ -5,6 +5,31 @@ import type { BackendProduct, Product,ProductCategory,} from "@/lib/domain/produ
 const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
 const API_ROOT = `${API_ORIGIN}/api/v1`;
 
+export interface CreateProductInput {
+  name: string;
+  category: ProductCategory;
+  description: string;
+  price: number;
+  size: string;
+  photos: File[];
+}
+
+export interface CreateProductResponse {
+  productId: string;
+  taskId: string;
+  status: string;
+}
+
+export interface UploadProductImagesResponse {
+  imageUrls: string[];
+}
+
+export interface GenerateProductModelResponse {
+  productId: string;
+  modelUrl: string | null;
+  modelStatus: Product["modelStatus"];
+}
+
 /**
  * Converts the backend's relative generated-model URL
  * into a browser-accessible absolute URL.
@@ -108,14 +133,9 @@ function mapBackendProduct(
  * angles
  * name
  */
-export async function createProduct(input: {
-  name: string;
-  category: ProductCategory;
-  description: string;
-  price: number;
-  size: string;
-  photos: File[];
-}) {
+export async function createProduct(
+  input: CreateProductInput,
+): Promise<CreateProductResponse> {
   if (!input.photos.length) {
     throw new Error("At least one product image is required.");
   }
@@ -168,6 +188,64 @@ export async function createProduct(input: {
   };
 }
 
+/** Uploads images through our backend; it never contacts the 3D provider. */
+export async function uploadProductImages(
+  productId: string,
+  images: File[],
+): Promise<UploadProductImagesResponse> {
+  if (!images.length) {
+    throw new Error("At least one product image is required.");
+  }
+
+  const formData = new FormData();
+  images.forEach((image) => formData.append("images", image));
+
+  const response = await fetch(`${API_ROOT}/products/${productId}/images`, {
+    method: "POST",
+    body: formData,
+  });
+
+  const data = (await response.json().catch(() => ({}))) as {
+    imageUrls?: string[];
+    error?: string;
+  };
+
+  if (!response.ok) {
+    throw new Error(data.error ?? "Unable to upload product images.");
+  }
+
+  return { imageUrls: data.imageUrls ?? [] };
+}
+
+/** Starts model generation through our backend only. */
+export async function generateProductModel(
+  productId: string,
+  imageUrls: string[] = [],
+): Promise<GenerateProductModelResponse> {
+  const response = await fetch(`${API_ROOT}/products/${productId}/model`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ imageUrls }),
+  });
+
+  const data = (await response.json().catch(() => ({}))) as {
+    productId?: string;
+    modelUrl?: string | null;
+    modelStatus?: Product["modelStatus"];
+    error?: string;
+  };
+
+  if (!response.ok) {
+    throw new Error(data.error ?? "Unable to start 3D model generation.");
+  }
+
+  return {
+    productId: data.productId ?? productId,
+    modelUrl: resolveBackendUrl(data.modelUrl),
+    modelStatus: data.modelStatus ?? "queued",
+  };
+}
+
 /**
  * Get the generation status for a product.
  *
@@ -177,9 +255,6 @@ export async function createProduct(input: {
 export interface ProductFilters {
   category?: ProductCategory | "";
   verified?: boolean;
-  has3D?: boolean;
-  minPrice?: string;
-  maxPrice?: string;
 }
 
 export async function getProducts(
@@ -188,9 +263,6 @@ export async function getProducts(
   const params = new URLSearchParams();
   if (filters.category) params.set("category", filters.category);
   if (filters.verified) params.set("isNafdacVerifiable", "true");
-  if (filters.has3D) params.set("has3D", "true");
-  if (filters.minPrice) params.set("minPrice", filters.minPrice);
-  if (filters.maxPrice) params.set("maxPrice", filters.maxPrice);
 
   const query = params.toString();
   const response = await fetch(
@@ -230,3 +302,5 @@ export async function getProductById(
     ) ?? null
   );
 }
+
+export const getProduct = getProductById;

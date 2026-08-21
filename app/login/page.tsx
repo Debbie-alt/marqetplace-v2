@@ -1,3 +1,4 @@
-import { AuthPage } from "@/features/auth/auth-page";
-
-export default function LoginPage() { return <AuthPage signup={false} />; }
+import LoginPage from "@/features/auth/login";
+export default function Login() { 
+    return <LoginPage/>;
+ }

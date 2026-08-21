@@ -1,3 +1,3 @@
-import { AuthPage } from "@/features/auth/auth-page";
-
-export default function SignupPage() { return <AuthPage signup />; }
+import SignupPage from "@/features/auth/signup";
+export default function Signup() { 
+    return <SignupPage/>; }

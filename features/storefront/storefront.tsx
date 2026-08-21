@@ -143,20 +143,8 @@ export function Storefront() {
   const [category, setCategory] =
     useState<ProductCategory | "">("");
 
-  const [verified, setVerified] =
+  const [nafdacVerifiable, setNafdacVerifiable] =
     useState(false);
-
-  const [three, setThree] =
-    useState(false);
-
-  const [min, setMin] =
-    useState("");
-
-  const [max, setMax] =
-    useState("");
-
-  const [rating, setRating] =
-    useState(0);
 
   const [sort, setSort] =
     useState("trusted");
@@ -165,31 +153,16 @@ export function Storefront() {
     useState(1);
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["products", category, verified, three, min, max],
+    queryKey: ["products", category, nafdacVerifiable],
     queryFn: () =>
       getProducts({
         category,
-        verified,
-        has3D: three,
-        minPrice: min,
-        maxPrice: max,
+        verified: nafdacVerifiable,
       }),
   });
 
   const result = useMemo(() => {
-    return [...(data ?? [])]
-      .filter((product) => {
-        return true;
-      })
-      .sort((a, b) => {
-        if (sort === "low") {
-          return a.price - b.price;
-        }
-
-        if (sort === "high") {
-          return b.price - a.price;
-        }
-
+    return [...(data ?? [])].sort((a, b) => {
         if (sort === "new") {
           return b.id.localeCompare(a.id);
         }
@@ -198,31 +171,18 @@ export function Storefront() {
       });
   }, [
     data,
-    category,
-    verified,
-    three,
-    min,
-    max,
     sort,
   ]);
 
   const clear = () => {
     setCategory("");
-    setVerified(false);
-    setThree(false);
-    setMin("");
-    setMax("");
-    setRating(0);
+    setNafdacVerifiable(false);
     setPage(1);
   };
 
   const chips = [
     category && labels[category],
-    verified && "NAFDAC VERIFIED",
-    three && "3D SCANNED",
-    min && `₦${min}+`,
-    max && `UP TO ₦${max}`,
-    rating && `${rating}+ STARS`,
+    nafdacVerifiable && "NAFDAC VERIFIABLE",
   ].filter(Boolean);
 
   return (
@@ -234,22 +194,19 @@ export function Storefront() {
       <main className="min-h-screen bg-neutral-100 md:flex">
         {/* FILTER SIDEBAR */}
         <aside className="w-full shrink-0 bg-neutral-900 p-5 text-white md:w-56">
-          <h2 className="mb-3 text-[9px] font-black uppercase text-neutral-500">
-            Verification status
-          </h2>
-
           <button
             type="button"
-            onClick={() =>
-              setVerified(!verified)
-            }
+            onClick={() => {
+              setNafdacVerifiable(!nafdacVerifiable);
+              setPage(1);
+            }}
             className={`rounded-full px-3 py-1 text-[9px] ${
-              verified
+              nafdacVerifiable
                 ? "bg-white text-neutral-900"
                 : "border border-neutral-600"
             }`}
           >
-            NAFDAC VERIFIED
+            NAFDAC VERIFIABLE
           </button>
 
           <hr className="my-5 border-neutral-700" />
@@ -283,83 +240,6 @@ export function Storefront() {
             </label>
           ))}
 
-          <hr className="my-5 border-neutral-700" />
-
-          <h2 className="mb-3 text-[9px] font-black uppercase text-neutral-500">
-            Price range (₦)
-          </h2>
-
-          <div className="flex gap-2">
-            <input
-              value={min}
-              onChange={(event) => {
-                setMin(event.target.value);
-                setPage(1);
-              }}
-              className="w-1/2 bg-neutral-800 p-2 text-xs"
-              placeholder="Min"
-            />
-
-            <input
-              value={max}
-              onChange={(event) => {
-                setMax(event.target.value);
-                setPage(1);
-              }}
-              className="w-1/2 bg-neutral-800 p-2 text-xs"
-              placeholder="Max"
-            />
-          </div>
-
-          <hr className="my-5 border-neutral-700" />
-
-          {[5, 4, 3].map((value) => (
-            <label
-              key={value}
-              className="mb-2 flex gap-2 text-[10px]"
-            >
-              <input
-                checked={rating === value}
-                onChange={() =>
-                  setRating(
-                    rating === value
-                      ? 0
-                      : value,
-                  )
-                }
-                type="checkbox"
-              />
-
-              {value}+ Stars
-            </label>
-          ))}
-
-          <button
-            type="button"
-            onClick={() => {
-              setThree(!three);
-              setPage(1);
-            }}
-            className="mt-3 flex w-full justify-between text-xs"
-          >
-            3D Scannable
-
-            <span
-              className={`h-5 w-9 rounded-full p-0.5 ${
-                three
-                  ? "bg-sky-300"
-                  : "bg-neutral-700"
-              }`}
-            >
-              <span
-                className={`block size-4 rounded-full bg-white transition ${
-                  three
-                    ? "translate-x-4"
-                    : ""
-                }`}
-              />
-            </span>
-          </button>
         </aside>
 
         {/* PRODUCTS */}
@@ -400,14 +280,6 @@ export function Storefront() {
 
                 <option value="rating">
                   Highest Rated
-                </option>
-
-                <option value="low">
-                  Price: Low to High
-                </option>
-
-                <option value="high">
-                  Price: High to Low
                 </option>
 
                 <option value="new">
@@ -510,11 +382,7 @@ export function Storefront() {
                   will appear here.
                 </p>
 
-                {(category ||
-                  verified ||
-                  three ||
-                  min ||
-                  max) && (
+                {(category || nafdacVerifiable) && (
                   <button
                     type="button"
                     onClick={clear}
