@@ -13,6 +13,8 @@ const NAFDAC_ENDPOINT =
   process.env.NEXT_PUBLIC_NAFDAC_VERIFICATION_ENDPOINT ??
   `${API_ORIGIN}/api/v1/nafdac/verify`;
 
+
+
 export async function verifyNafdacNumber(
   number: string,
 ): Promise<NafdacVerificationRecord> {
