@@ -256,13 +256,15 @@ export async function generateProductModel(
 
 export async function getProductGenerationStatus(
   productId: string,
+  taskId?: string,
 ): Promise<{
   productId: string;
   modelUrl: string | null;
   modelStatus: Product["modelStatus"];
   modelProgress: number;
 }> {
-  const response = await fetch(`${API_ROOT}/products/${productId}/status`, {
+  const qs = taskId ? `?taskId=${encodeURIComponent(taskId)}` : "";
+  const response = await fetch(`${API_ROOT}/products/${productId}/status${qs}`, {
     cache: "no-store",
   });
 
