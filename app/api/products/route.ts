@@ -2,31 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { products, type StoredProduct } from "@/lib/api/store";
 
 const TRIPO_API_KEY = process.env.TRIPO_API_KEY;
-const TRIPO_BASE = "https://api.tripo3d.ai/v2/openapi";
+const TRIPO_BASE = "https://openapi.tripo3d.ai/v3";
+const TRIPO_MODEL = process.env.TRIPO_MODEL_VERSION ?? "v3.1-20260211";
 
-const MIME_TO_TRIPO_TYPE: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/jpg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-};
+const SUPPORTED_IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png"]);
 
 async function uploadToTripo(
   buffer: ArrayBuffer,
   filename: string,
   mimetype: string,
-): Promise<{ file_token: string; type: string }> {
-  const fileType = MIME_TO_TRIPO_TYPE[mimetype];
-  if (!fileType) throw new Error("Unsupported image type. Use JPG, PNG, or WEBP.");
+): Promise<string> {
+  if (!SUPPORTED_IMAGE_TYPES.has(mimetype)) {
+    throw new Error("Unsupported image type. Use JPG or PNG.");
+  }
 
   const formData = new FormData();
-  formData.append(
-    "file",
-    new Blob([buffer], { type: mimetype }),
-    filename,
-  );
+  formData.append("file", new Blob([buffer], { type: mimetype }), filename);
 
-  const resp = await fetch(`${TRIPO_BASE}/upload`, {
+  const resp = await fetch(`${TRIPO_BASE}/files`, {
     method: "POST",
     headers: { Authorization: `Bearer ${TRIPO_API_KEY}` },
     body: formData,
@@ -34,9 +27,11 @@ async function uploadToTripo(
 
   const data = await resp.json();
   if (!resp.ok || data.code !== 0) {
-    throw new Error(`Tripo upload error: ${data.message || "unknown error"}`);
+    throw new Error(
+      `Tripo upload error: ${data.message || "unknown error"}`,
+    );
   }
-  return { file_token: data.data.image_token, type: fileType };
+  return data.data.file_token as string;
 }
 
 export async function POST(request: NextRequest) {
@@ -53,7 +48,10 @@ export async function POST(request: NextRequest) {
     const name = (formData.get("name") as string) || "Untitled product";
 
     if (!files || files.length === 0) {
-      return NextResponse.json({ error: "No photos uploaded" }, { status: 400 });
+      return NextResponse.json(
+        { error: "No photos uploaded" },
+        { status: 400 },
+      );
     }
 
     let angles: string[] = [];
@@ -63,64 +61,61 @@ export async function POST(request: NextRequest) {
       angles = [];
     }
 
-    const uploaded: { angle: string; file_token: string; type: string }[] = [];
+    const uploaded: { angle: string; file_token: string }[] = [];
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const arrayBuffer = await file.arrayBuffer();
       const angle = angles[i] || "front";
-      const info = await uploadToTripo(
+      const token = await uploadToTripo(
         arrayBuffer,
         file.name || `photo_${i}.jpg`,
         file.type,
       );
-      uploaded.push({ angle, ...info });
+      uploaded.push({ angle, file_token: token });
     }
 
     let taskBody: Record<string, unknown>;
+    let taskEndpoint: string;
 
     if (uploaded.length === 1) {
+      taskEndpoint = "/generation/image-to-model";
       taskBody = {
-        type: "image_to_model",
-        file: { type: uploaded[0].type, file_token: uploaded[0].file_token },
+        input: uploaded[0].file_token,
+        model: TRIPO_MODEL,
         texture: true,
         pbr: false,
       };
     } else {
+      taskEndpoint = "/generation/multiview-to-model";
+
       const ORDER = ["front", "left", "back", "right"];
       const tokenMap = new Map(uploaded.map((u) => [u.angle, u]));
 
-      const files = ORDER.map((angle) => {
-        const u = tokenMap.get(angle);
-        return u ? { type: u.type, file_token: u.file_token } : null;
-      });
-
-      if (!files[0]) {
+      if (!tokenMap.has("front")) {
         return NextResponse.json(
           { error: "Front angle photo is required" },
           { status: 400 },
         );
       }
 
-      while (files.length > 1 && files[files.length - 1] === null) {
-        files.pop();
-      }
-
-      if (files.length < 2) {
+      if (uploaded.length < 2) {
         return NextResponse.json(
           { error: "Multiview requires at least 2 photos" },
           { status: 400 },
         );
       }
 
+      const inputs = ORDER.map((angle) => tokenMap.get(angle)?.file_token ?? "");
+
       taskBody = {
-        type: "multiview_to_model",
-        files,
+        inputs,
+        model: TRIPO_MODEL,
         texture: true,
         pbr: false,
       };
     }
 
-    const taskResp = await fetch(`${TRIPO_BASE}/task`, {
+    const taskResp = await fetch(`${TRIPO_BASE}${taskEndpoint}`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${TRIPO_API_KEY}`,

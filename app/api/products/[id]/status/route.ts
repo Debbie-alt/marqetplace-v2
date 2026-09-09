@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { products } from "@/lib/api/store";
 
 const TRIPO_API_KEY = process.env.TRIPO_API_KEY;
-const TRIPO_BASE = "https://api.tripo3d.ai/v2/openapi";
+const TRIPO_BASE = "https://openapi.tripo3d.ai/v3";
 
 export async function GET(
   request: NextRequest,
@@ -19,7 +19,7 @@ export async function GET(
   }
 
   try {
-    const taskResp = await fetch(`${TRIPO_BASE}/task/${taskId}`, {
+    const taskResp = await fetch(`${TRIPO_BASE}/tasks/${taskId}`, {
       headers: { Authorization: `Bearer ${TRIPO_API_KEY}` },
     });
     const taskData = await taskResp.json();
@@ -33,15 +33,20 @@ export async function GET(
 
     const data = taskData.data;
 
+    const modelUrl =
+      data.output?.model_url ||
+      data.output?.pbr_model ||
+      data.output?.model ||
+      data.output?.base_model ||
+      null;
+
     const product = products.get(id);
     if (product) {
       product.status = data.status;
       product.progress = data.progress;
-      if (data.status === "success") {
-        const remoteUrl =
-          data.output.pbr_model || data.output.model || data.output.base_model;
-        product.modelUrls = { glb: remoteUrl };
-        product.thumbnailUrl = data.output.rendered_image || null;
+      if (data.status === "success" && modelUrl) {
+        product.modelUrls = { glb: modelUrl };
+        product.thumbnailUrl = data.output.rendered_image_url || null;
       }
     }
 
@@ -50,17 +55,9 @@ export async function GET(
       taskId,
       status: data.status,
       progress: data.progress,
-      modelUrls:
-        data.status === "success"
-          ? {
-              glb:
-                data.output.pbr_model ||
-                data.output.model ||
-                data.output.base_model,
-            }
-          : null,
+      modelUrls: data.status === "success" && modelUrl ? { glb: modelUrl } : null,
       thumbnailUrl:
-        data.status === "success" ? data.output.rendered_image || null : null,
+        data.status === "success" ? data.output?.rendered_image_url || null : null,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server error";
