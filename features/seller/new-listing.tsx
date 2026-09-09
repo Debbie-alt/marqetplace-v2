@@ -197,9 +197,9 @@ export function NewListing() {
     }));
   };
 
-  const pollGeneration = async (productId: string) => {
+  const pollGeneration = async (productId: string, taskId: string) => {
     for (let attempt = 0; attempt < 120; attempt += 1) {
-      const status = await getProductGenerationStatus(productId);
+      const status = await getProductGenerationStatus(productId, taskId);
       setGenerationProgress(status.modelProgress);
 
       if (status.modelStatus === "ready") {
@@ -236,7 +236,7 @@ export function NewListing() {
         }
 
         setGenerationProgress(0);
-        await pollGeneration(result.productId);
+        await pollGeneration(result.productId, result.taskId);
       } catch (pollError) {
         setGenerationStatus("failed");
         setError(

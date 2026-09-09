@@ -1,0 +1,7 @@
+node_modules
+backend/node_modules
+
+backend/public/uploads
+backend/public/generated
+
+.git
