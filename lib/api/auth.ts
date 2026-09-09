@@ -25,7 +25,7 @@ export type AuthResponse = {
   };
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 async function handleResponse<T>(response: Response): Promise<T> {
   const data = await response.json().catch(() => null);
@@ -42,7 +42,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 export async function login(
   payload: LoginPayload
 ): Promise<AuthResponse> {
-  const response = await fetch(`${API_URL}/auth/login`, {
+  const response = await fetch(`${API_URL}/api/auth/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -56,7 +56,7 @@ export async function login(
 export async function signup(
   payload: SignupPayload
 ): Promise<AuthResponse> {
-  const response = await fetch(`${API_URL}/auth/signup`, {
+  const response = await fetch(`${API_URL}/api/auth/signup`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
