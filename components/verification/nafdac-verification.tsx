@@ -13,19 +13,27 @@ function Detail({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function NafdacVerification() {
-  const [number, setNumber] = useState("");
+export function NafdacVerification({
+  initialNumber = "",
+}: {
+  initialNumber?: string;
+}) {
+  const [number, setNumber] = useState(initialNumber ?? "");
   const verification = useNafdacVerification();
   const record = verification.data;
 
-  const verify = () => verification.mutate(number);
+  const verify = () => verification.mutate(number.trim());
+
+  const active =
+    verification.data?.found &&
+    (verification.data.isValid === undefined || verification.data.isValid);
 
   return (
     <section className="mt-10 rounded-xl bg-neutral-900 text-white">
       <div className="border-b border-neutral-700 p-5">
         <h2 className="text-xs font-black uppercase tracking-wide">Verify NAFDAC registration</h2>
         <p className="mt-2 text-xs text-neutral-400">
-          Check the product registration details from the official verification service.
+          Check the product registration details from the official Greenbook registry.
         </p>
       </div>
 
@@ -61,15 +69,19 @@ export function NafdacVerification() {
 
         {record && (
           <div className="mt-5">
-            <p className={`mb-3 text-sm font-bold ${record.status === "valid" ? "text-emerald-400" : "text-amber-300"}`}>
-              {record.status === "valid" ? "Registration found and active" : `Verification status: ${record.status}`}
+            <p className={`mb-3 text-sm font-bold ${active ? "text-emerald-400" : "text-amber-300"}`}>
+              {active
+                ? "Registration found and valid"
+                : record.found
+                  ? "Registration found but flagged"
+                  : "No matching registration found"}
             </p>
-            <Detail label="NAFDAC Number" value={record.number} />
-            <Detail label="Product Name" value={record.productName} />
-            <Detail label="Manufacturer" value={record.manufacturer} />
-            <Detail label="Production Date" value={record.productionDate} />
-            <Detail label="Active Ingredients" value={record.activeIngredients} />
-            <Detail label="Expiry Date" value={record.expiryDate} />
+            <Detail label="NAFDAC Number" value={record.nafdacNumber} />
+            <Detail label="Product Name" value={record.productName ?? ""} />
+            <Detail label="Manufacturer" value={record.manufacturer ?? ""} />
+            {record.expiryDate && (
+              <Detail label="Expiry Date" value={String(record.expiryDate).slice(0, 10)} />
+            )}
           </div>
         )}
       </div>

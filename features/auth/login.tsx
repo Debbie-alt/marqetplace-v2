@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Apple } from "lucide-react";
 import { FormEvent, useState } from "react";
 
@@ -13,6 +14,7 @@ import {
 } from "@/components/ui";
 
 import { useLogin } from "@/hooks/useLogin";
+import { storeSession } from "@/lib/auth/token";
 
 function Segment() {
   return (
@@ -54,6 +56,7 @@ function OAuth({ children }: { children: React.ReactNode }) {
 }
 
 export default function LoginPage() {
+  const router = useRouter();
   const { mutate, isPending, error } = useLogin();
 
   const [email, setEmail] = useState("");
@@ -62,10 +65,18 @@ export default function LoginPage() {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    mutate({
-      email,
-      password,
-    });
+    mutate(
+      {
+        email,
+        password,
+      },
+      {
+        onSuccess: (response) => {
+          storeSession(response.accessToken, response.user);
+          router.push("/");
+        },
+      },
+    );
   }
 
   return (

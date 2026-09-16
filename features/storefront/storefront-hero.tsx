@@ -11,8 +11,9 @@ export function StorefrontHero() {
   async function verify() {
     setChecking(true);
     const result = await verifyNafdacNumber(number);
+    const valid = result.found && (result.isValid === undefined || result.isValid);
     setMessage(
-      result.status === "valid"
+      valid && result.productName
         ? `${result.productName} is Active & Valid.`
         : "No valid NAFDAC record found."
     );

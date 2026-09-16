@@ -11,14 +11,20 @@ interface MarketplaceState {
 
 const MarketplaceContext = createContext<MarketplaceState | null>(null);
 
-export function MarketplaceProvider({ children }: { children: ReactNode }) {
-  const [cart, setCart] = useState<string[]>([]);
-  const [wishlistIds, setWishlistIds] = useState<string[]>([]);
+function readStored(key: string): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(key);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
 
-  useEffect(() => {
-    setCart(JSON.parse(localStorage.getItem("marqetplace-cart") ?? "[]"));
-    setWishlistIds(JSON.parse(localStorage.getItem("marqetplace-wishlist") ?? "[]"));
-  }, []);
+export function MarketplaceProvider({ children }: { children: ReactNode }) {
+  const [cart, setCart] = useState<string[]>(() => readStored("marqetplace-cart"));
+  const [wishlistIds, setWishlistIds] = useState<string[]>(() => readStored("marqetplace-wishlist"));
   useEffect(() => { localStorage.setItem("marqetplace-cart", JSON.stringify(cart)); }, [cart]);
   useEffect(() => { localStorage.setItem("marqetplace-wishlist", JSON.stringify(wishlistIds)); }, [wishlistIds]);
 

@@ -1,13 +1,13 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 import {
-  generateProductModel,
   getProduct,
   getProducts,
   type ProductFilters,
 } from "@/lib/api/products";
+import { getCategories } from "@/lib/api/categories";
 
 export function useProducts(filters: ProductFilters = {}) {
   return useQuery({
@@ -24,9 +24,9 @@ export function useProduct(productId: string) {
   });
 }
 
-export function useGenerateProductModel() {
-  return useMutation({
-    mutationFn: ({ productId, imageUrls }: { productId: string; imageUrls?: string[] }) =>
-      generateProductModel(productId, imageUrls),
+export function useCategories() {
+  return useQuery({
+    queryKey: ["categories"],
+    queryFn: getCategories,
   });
 }

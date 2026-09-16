@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ShoppingCart, Store } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { Brand, DarkInput, FieldLabel, PasswordInput, PrimaryButton,} from "@/components/ui";
 
 import { useSignup } from "@/hooks/useSignup";
+import { storeSession } from "@/lib/auth/token";
 
 function Segment() {
   return (
@@ -43,6 +45,7 @@ function OAuth({ children }: { children: React.ReactNode }) {
 }
 
 export default function SignupPage() {
+  const router = useRouter();
   const { mutate, isPending, error } = useSignup();
 
   const [seller, setSeller] = useState(true);
@@ -51,7 +54,6 @@ export default function SignupPage() {
     firstName: "",
     lastName: "",
     email: "",
-    phone: "",
     password: "",
   });
 
@@ -68,10 +70,21 @@ export default function SignupPage() {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    mutate({
-      ...form,
-      role: seller ? "seller" : "buyer",
-    });
+    const fullName = `${form.firstName.trim()} ${form.lastName.trim()}`.trim();
+
+    mutate(
+      {
+        email: form.email,
+        password: form.password,
+        fullName,
+      },
+      {
+        onSuccess: (response) => {
+          storeSession(response.accessToken, response.user);
+          router.push("/");
+        },
+      },
+    );
   }
 
   return (
@@ -226,29 +239,6 @@ export default function SignupPage() {
                   required
                 />
               </div>
-            </div>
-
-            <div>
-              <FieldLabel>Phone Number</FieldLabel>
-
-              <div className="mt-2">
-                <DarkInput
-                  type="tel"
-                  placeholder="0805236938"
-                  value={form.phone}
-                  onChange={(event) =>
-                    updateField(
-                      "phone",
-                      event.target.value
-                    )
-                  }
-                  required
-                />
-              </div>
-
-              <p className="mt-2 text-[10px] leading-4 text-neutral-400">
-                Nigerian number required for SMS verification
-              </p>
             </div>
 
             <div>
