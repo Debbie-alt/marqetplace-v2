@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Apple } from "lucide-react";
 import { FormEvent, useState } from "react";
 
 import {
@@ -33,25 +32,6 @@ function Segment() {
         Create Account
       </Link>
     </div>
-  );
-}
-
-function Divider({ children }: { children: string }) {
-  return (
-    <div className="my-5 flex items-center gap-3 text-[10px] text-neutral-500 before:h-px before:flex-1 before:bg-sky-200 after:h-px after:flex-1 after:bg-sky-200">
-      {children}
-    </div>
-  );
-}
-
-function OAuth({ children }: { children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      className="mb-3 w-full rounded-xl bg-neutral-900 py-3 text-xs text-white"
-    >
-      {children}
-    </button>
   );
 }
 
@@ -98,17 +78,6 @@ export default function LoginPage() {
             Sign up free →
           </Link>
         </p>
-
-        <div className="mt-5">
-          <OAuth>Continue with Google</OAuth>
-
-          <OAuth>
-            <Apple className="mr-2 inline size-4" />
-            Continue with Apple
-          </OAuth>
-        </div>
-
-        <Divider>or sign in with email</Divider>
 
         <form onSubmit={handleSubmit}>
           <div>

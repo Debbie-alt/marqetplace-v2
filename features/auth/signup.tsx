@@ -34,16 +34,6 @@ function Divider({ children }: { children: string }) {
   );
 }
 
-function OAuth({ children }: { children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      className="mb-3 w-full rounded-xl border border-neutral-200 bg-white py-3.5 text-xs font-medium text-neutral-700 shadow-sm transition hover:bg-neutral-50">
-      {children}
-    </button>
-  );
-}
-
 export default function SignupPage() {
   const router = useRouter();
   const { mutate, isPending, error } = useSignup();
@@ -173,11 +163,6 @@ export default function SignupPage() {
                 </small>
               </button>
             </div>
-          </div>
-
-          {/* Social Signup */}
-          <div className="mt-7">
-            <OAuth>Continue with Google</OAuth>
           </div>
 
           <Divider>or sign up with email</Divider>
