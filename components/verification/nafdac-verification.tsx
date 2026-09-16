@@ -55,7 +55,7 @@ export function NafdacVerification({
           <button
             type="submit"
             disabled={verification.isPending || !number.trim()}
-            className="bg-sky-200 px-5 py-3 text-xs font-black text-neutral-900 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-full bg-sky-200 px-5 py-3 text-xs font-black text-neutral-900 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {verification.isPending ? "CHECKING..." : "VERIFY"}
           </button>
