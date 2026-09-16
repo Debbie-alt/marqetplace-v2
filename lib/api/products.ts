@@ -62,6 +62,26 @@ export interface Product3dStatus {
   status: ProductStatus;
 }
 
+export interface ProductUpdateInput {
+  description: string;
+  price: number;
+  widthValue: number;
+  heightValue: number;
+  sizeUnit?: LengthUnit;
+}
+
+interface BackendMineResult {
+  data: BackendProduct[];
+  pagination: {
+    totalItems: number;
+    totalPages: number;
+    currentPage: number;
+    pageSize: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+}
+
 function categoryNameOf(backend: BackendProduct): string {
   if (!backend.category) return "";
   return typeof backend.category === "string"
@@ -155,6 +175,9 @@ function mapBackendProduct(backend: BackendProduct): Product {
     modelProgress: mapModelProgress(backend.model3dStatus, Boolean(modelUrl)),
     model3dStatus: backend.model3dStatus,
     productStatus: backend.status,
+    widthValue: backend.widthValue,
+    heightValue: backend.heightValue,
+    sizeUnit: backend.sizeUnit,
   };
 }
 
@@ -301,3 +324,35 @@ export async function getProductById(
 }
 
 export const getProduct = getProductById;
+
+/** GET /products/mine — all non-deleted products owned by the seller. */
+export async function getMyProducts(
+  page = 1,
+  limit = 50,
+): Promise<{ products: Product[]; pagination: BackendMineResult["pagination"] }> {
+  const result = await request<BackendMineResult>(
+    `/products/mine?page=${page}&limit=${limit}`,
+  );
+  return {
+    products: result.data.map(mapBackendProduct),
+    pagination: result.pagination,
+  };
+}
+
+/** PATCH /products/:id — edit description, price and real-world dimensions. */
+export function updateProduct(
+  productId: string,
+  input: ProductUpdateInput,
+): Promise<BackendProduct> {
+  return request<BackendProduct>(`/products/${productId}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+/** DELETE /products/:id — soft-delete (disappears from the catalogue). */
+export function deleteProduct(productId: string): Promise<{ message: string }> {
+  return request<{ message: string }>(`/products/${productId}`, {
+    method: "DELETE",
+  });
+}

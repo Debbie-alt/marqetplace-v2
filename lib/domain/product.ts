@@ -57,6 +57,9 @@ export interface Product {
   modelProgress: number;
   productStatus?: ProductStatus;
   model3dStatus?: Model3dStatus;
+  widthValue?: number;
+  heightValue?: number;
+  sizeUnit?: LengthUnit;
 }
 
 export interface ProductModelGenerationStatus {
