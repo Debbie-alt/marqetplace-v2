@@ -20,14 +20,19 @@ export function getAuthToken(): string | null {
   return storage()?.getItem(TOKEN_KEY) ?? null;
 }
 
+let lastUserRaw: string | null | undefined;
+let cachedUser: SessionUser | null = null;
+
 export function getSessionUser(): SessionUser | null {
   const raw = storage()?.getItem(USER_KEY);
-  if (!raw) return null;
+  if (raw === lastUserRaw) return cachedUser;
+  lastUserRaw = raw;
   try {
-    return JSON.parse(raw) as SessionUser;
+    cachedUser = raw ? (JSON.parse(raw) as SessionUser) : null;
   } catch {
-    return null;
+    cachedUser = null;
   }
+  return cachedUser;
 }
 
 export function storeSession(accessToken: string, user: SessionUser): void {
