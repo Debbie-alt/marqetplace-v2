@@ -1,10 +1,14 @@
-import type { ProductCategory } from "@/lib/domain/product";
+import type { LengthUnit } from "@/lib/domain/product";
+import type { ProductView } from "./products";
 
 export interface ListingDraft {
-  category?: ProductCategory;
+  categoryId?: string;
   name?: string;
   description?: string;
   price?: number;
-  size?: string;
-  images: File[];
+  width?: number;
+  height?: number;
+  sizeUnit?: LengthUnit;
+  nafdacNumber?: string;
+  images: Partial<Record<ProductView, File>>;
 }

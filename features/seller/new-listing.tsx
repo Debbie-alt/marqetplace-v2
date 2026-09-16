@@ -1,55 +1,37 @@
 "use client";
 
-
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, ImagePlus, Loader2 } from "lucide-react";
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { Brand, FieldLabel, PrimaryButton,} from "@/components/ui";
+import { Check, ImagePlus, Loader2, X } from "lucide-react";
+import { FormEvent, useEffect, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Brand, FieldLabel, PrimaryButton } from "@/components/ui";
+/* eslint-disable @next/next/no-img-element */
 import {
   createProduct,
-  getProductGenerationStatus,
+  getProduct3dStatus,
+  uploadProductImages,
+  PRODUCT_VIEWS,
+  type ProductView,
 } from "@/lib/api/products";
+import { createVendor, getVendorMe } from "@/lib/api/vendors";
+import { getCategories } from "@/lib/api/categories";
+import { verifyNafdacNumber } from "@/lib/api/verification";
+import { getSessionUser } from "@/lib/auth/token";
 import type { ListingDraft } from "@/lib/api/seller";
-import type { ProductCategory } from "@/lib/domain/product";
+import type { LengthUnit } from "@/lib/domain/product";
 
-const categories: {
-  label: string;
-  icon: string;
-  value: ProductCategory;
-}[] = [
-  {
-    label: "Health & Pharma",
-    icon: "💊",
-    value: "health",
-  },
-  {
-    label: "Skincare & Beauty",
-    icon: "🧴",
-    value: "other",
-  },
-  {
-    label: "Fashion & Apparel",
-    icon: "👗",
-    value: "fashion",
-  },
-  {
-    label: "Electronics",
-    icon: "📱",
-    value: "electronics",
-  },
-  {
-    label: "Food & Consumables",
-    icon: "🍎",
-    value: "food",
-  },
-  {
-    label: "Other",
-    icon: "📦",
-    value: "other",
-  },
-];
+const VIEW_LABELS: Record<ProductView, string> = {
+  FRONT: "FRONT",
+  BACK: "BACK",
+  LEFT: "LEFT",
+  RIGHT: "RIGHT",
+  TOP: "TOP",
+  BOTTOM: "BOTTOM",
+};
+
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 function Topbar() {
   return (
@@ -62,14 +44,9 @@ function Topbar() {
         </span>
 
         <div className="ml-auto flex gap-3 text-[10px]">
-          <button
-            type="button"
-            className="rounded-full border px-3 py-1"
-          >
-            Save Draft
-          </button>
-
-          <Link href="/">← Exit</Link>
+          <Link href="/" className="rounded-full border px-3 py-1">
+            ← Exit
+          </Link>
         </div>
       </div>
     </header>
@@ -79,11 +56,7 @@ function Topbar() {
 function Stepper({ step }: { step: number }) {
   return (
     <div className="mb-8 flex gap-8 text-xs">
-      {[
-        "Product Info",
-        "Verification",
-        "Review & Publish",
-      ].map((name, i) => {
+      {["Product Info", "Verification", "Review & Publish"].map((name, i) => {
         const n = i + 1;
 
         return (
@@ -106,11 +79,7 @@ function Stepper({ step }: { step: number }) {
                     : "border-neutral-300"
               }`}
             >
-              {n < step ? (
-                <Check className="size-4" />
-              ) : (
-                n
-              )}
+              {n < step ? <Check className="size-4" /> : n}
             </span>
 
             <b>{name}</b>
@@ -150,13 +119,9 @@ function Summary({
             key={key}
             className="flex justify-between gap-6 py-1 text-sm"
           >
-            <span className="text-neutral-500">
-              {key}
-            </span>
+            <span className="text-neutral-500">{key}</span>
 
-            <span className="max-w-md text-right">
-              {value || "—"}
-            </span>
+            <span className="max-w-md text-right">{value || "—"}</span>
           </div>
         ))}
       </div>
@@ -166,26 +131,44 @@ function Summary({
 
 export function NewListing() {
   const router = useRouter();
+
   const [step, setStep] = useState(1);
 
   const [draft, setDraft] = useState<ListingDraft>({
-    images: [],
+    images: {},
   });
 
-  const [confirmations, setConfirmations] = useState([
-    false,
-    false,
-    false,
-  ]);
+  const [confirmations, setConfirmations] = useState([false, false, false]);
 
-  const [generationStatus, setGenerationStatus] =
-    useState<
-      "idle" | "uploading" | "success" | "failed"
-    >("idle");
+  const [generationStatus, setGenerationStatus] = useState<
+    "idle" | "uploading" | "success" | "failed"
+  >("idle");
 
   const [generationProgress, setGenerationProgress] = useState(0);
 
   const [error, setError] = useState<string | null>(null);
+
+  // NAFDAC pre-check state (step 2)
+  const [checkingNafdac, setCheckingNafdac] = useState(false);
+  const [nafdacResult, setNafdacResult] = useState<string | null>(null);
+  const [nafdacError, setNafdacError] = useState<string | null>(null);
+
+  const categoriesQuery = useQuery({
+    queryKey: ["categories"],
+    queryFn: getCategories,
+  });
+
+  const categories = categoriesQuery.data ?? [];
+  const selectedCategory = categories.find(
+    (item) => item._id === draft.categoryId,
+  );
+  const requiresNafdac = Boolean(selectedCategory?.requiresNafdac);
+
+  useEffect(() => {
+    if (!getSessionUser()) {
+      router.replace("/login?next=/seller/listings/new");
+    }
+  }, [router]);
 
   const update = <K extends keyof ListingDraft>(
     key: K,
@@ -197,68 +180,125 @@ export function NewListing() {
     }));
   };
 
-  const pollGeneration = async (productId: string, taskId: string) => {
-    for (let attempt = 0; attempt < 120; attempt += 1) {
-      const status = await getProductGenerationStatus(productId, taskId);
-      setGenerationProgress(status.modelProgress);
+  const setViewImage = (view: ProductView, file: File | null) => {
+    if (!file) return;
 
-      if (status.modelStatus === "ready") {
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setError(`${VIEW_LABELS[view]}: images must be JPEG, PNG or WebP.`);
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      setError(`${VIEW_LABELS[view]}: image exceeds the 5MB limit.`);
+      return;
+    }
+
+    setError(null);
+    setDraft((current) => ({
+      ...current,
+      images: {
+        ...current.images,
+        [view]: file,
+      },
+    }));
+  };
+
+  const removeViewImage = (view: ProductView) => {
+    setDraft((current) => {
+      const next = { ...current.images };
+      delete next[view];
+      return { ...current, images: next };
+    });
+  };
+
+  const completedViews = PRODUCT_VIEWS.filter((view) => draft.images[view]);
+
+  const pollGeneration = async (productId: string) => {
+    for (let attempt = 0; attempt < 120; attempt += 1) {
+      const status = await getProduct3dStatus(productId);
+
+      setGenerationProgress(
+        status.model3dStatus === "COMPLETE" ? 100 : attempt < 5 ? 25 : 60,
+      );
+
+      if (status.model3dStatus === "COMPLETE") {
         setGenerationProgress(100);
         setGenerationStatus("success");
         window.setTimeout(() => router.push(`/products/${productId}`), 1500);
         return;
       }
 
-      if (status.modelStatus === "failed") {
+      if (status.model3dStatus === "FAILED") {
         throw new Error("3D model generation failed.");
       }
 
-      await new Promise((resolve) => window.setTimeout(resolve, 3000));
+      await new Promise((resolve) => window.setTimeout(resolve, 4000));
     }
 
     throw new Error("Model generation is taking longer than expected.");
   };
 
+  const publishMutation = useMutation({
+    mutationFn: async () => {
+      if (!draft.categoryId || !draft.name || hasInvalidBasics()) {
+        throw new Error("Please complete all required product details.");
+      }
 
+      const views = PRODUCT_VIEWS.filter((view) => draft.images[view]);
+      if (views.length !== PRODUCT_VIEWS.length) {
+        throw new Error("Please upload all 6 product views.");
+      }
 
-  const createProductMutation = useMutation({
-    mutationFn: createProduct,
+      // 1. Ensure the seller has a store profile (one per account).
+      let vendor = await getVendorMe();
+      if (!vendor) {
+        const user = getSessionUser();
+        vendor = await createVendor({
+          storeName: user?.fullName?.trim() || "My Store",
+          description: "",
+        });
+      }
+
+      // 2. Create the draft product (JSON).
+      const product = await createProduct({
+        categoryId: draft.categoryId,
+        productName: draft.name.trim(),
+        description: draft.description?.trim() || "",
+        price: Number(draft.price ?? 0),
+        widthValue: Number(draft.width ?? 0),
+        heightValue: Number(draft.height ?? 0),
+        sizeUnit: (draft.sizeUnit ?? "CM") as LengthUnit,
+        nafdacNumber: requiresNafdac ? draft.nafdacNumber?.trim() : undefined,
+      });
+
+      const productId = product._id;
+      if (!productId) {
+        throw new Error("The server did not return a product ID.");
+      }
+
+      // 3. Attach the six view images — this queues the Tripo 3D job.
+      await uploadProductImages(productId, draft.images as Record<ProductView, File>);
+
+      // 4. Poll 3D status until the scaled model is ready.
+      await pollGeneration(productId);
+    },
 
     onMutate: () => {
       setError(null);
       setGenerationStatus("uploading");
+      setGenerationProgress(0);
     },
 
-    onSuccess: async (result) => {
-      try {
-        if (!result.productId) {
-          throw new Error("The server did not return a product ID.");
-        }
-
-        setGenerationProgress(0);
-        await pollGeneration(result.productId, result.taskId);
-      } catch (pollError) {
-        setGenerationStatus("failed");
-        setError(
-          pollError instanceof Error
-            ? pollError.message
-            : "Unable to generate the 3D model.",
-        );
-      }
+    onSuccess: () => {
+      setGenerationStatus("success");
     },
 
-    onError: (error) => {
+    onError: (error: Error) => {
       setGenerationStatus("failed");
-
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Unable to create product.",
-      );
+      setError(error.message);
     },
   });
 
-   const handlePublish = () => {
+  const handlePublish = () => {
     setError(null);
 
     if (!draft.name?.trim()) {
@@ -267,11 +307,15 @@ export function NewListing() {
       return;
     }
 
-    if (!draft.images.length) {
-      setError(
-        "Please upload at least one product image.",
-      );
+    if (completedViews.length !== PRODUCT_VIEWS.length) {
+      setError("Please upload all 6 product views.");
       setStep(1);
+      return;
+    }
+
+    if (requiresNafdac && !draft.nafdacNumber?.trim()) {
+      setError("This category requires a NAFDAC registration number.");
+      setStep(2);
       return;
     }
 
@@ -282,17 +326,81 @@ export function NewListing() {
       return;
     }
 
-    createProductMutation.mutate({
-      name: draft.name.trim(),
-      photos: draft.images,
-      category: draft.category ?? "other",
-      description: draft.description ?? "",
-      price: draft.price ?? 0,
-      size: draft.size ?? "",
-    });
+    publishMutation.mutate();
   };
 
-  const isPublishing = createProductMutation.isPending || generationStatus === "uploading";
+  function hasInvalidBasics(): boolean {
+    return (
+      !draft.categoryId ||
+      !(draft.name ?? "").trim() ||
+      !(draft.description ?? "").trim() ||
+      !(Number(draft.price) >= 0) ||
+      !(Number(draft.width) > 0) ||
+      !(Number(draft.height) > 0)
+    );
+  }
+
+  const isPublishing =
+    publishMutation.isPending || generationStatus === "uploading";
+
+  const goNextFromBasics = () => {
+    setError(null);
+
+    if (!draft.categoryId) {
+      setError("Please select a product category.");
+      return;
+    }
+    if (!draft.name?.trim()) {
+      setError("Please enter a product name.");
+      return;
+    }
+    if (!(draft.description ?? "").trim()) {
+      setError("Please enter a product description.");
+      return;
+    }
+    if (!(Number(draft.width) > 0) || !(Number(draft.height) > 0)) {
+      setError("Please enter the real-world width and height of the product.");
+      return;
+    }
+    if (completedViews.length !== PRODUCT_VIEWS.length) {
+      setError("Please upload all 6 product views before continuing.");
+      return;
+    }
+
+    setStep(2);
+  };
+
+  const runNafdacCheck = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const number = draft.nafdacNumber?.trim() ?? "";
+    if (!number) {
+      setNafdacError("Enter a NAFDAC registration number.");
+      return;
+    }
+
+    setCheckingNafdac(true);
+    setNafdacError(null);
+    setNafdacResult(null);
+
+    try {
+      const result = await verifyNafdacNumber(number);
+      setNafdacResult(
+        result.found &&
+          (result.isValid === undefined || result.isValid) &&
+          (result.productName || result.manufacturer)
+          ? `${result.productName ?? "Product"} — registration found & valid.`
+          : "No matching registration found for this number.",
+      );
+    } catch (checkError) {
+      setNafdacError(
+        checkError instanceof Error
+          ? checkError.message
+          : "Unable to verify this NAFDAC number.",
+      );
+    } finally {
+      setCheckingNafdac(false);
+    }
+  };
 
   return (
     <main className="min-h-screen bg-neutral-100">
@@ -316,225 +424,215 @@ export function NewListing() {
             </h1>
 
             <p className="mt-4 max-w-xl text-sm text-neutral-500">
-              Start with the basics. Fill in your product
-              details accurately — buyers rely on this
-              information to make purchase decisions.
+              Start with the basics. Fill in your product details accurately —
+              buyers rely on this information to make purchase decisions.
             </p>
 
             <div className="mt-8">
-              <FieldLabel>
-                Product Category
-              </FieldLabel>
+              <FieldLabel>Product Category</FieldLabel>
+
+              {categoriesQuery.isLoading && (
+                <p className="text-sm text-neutral-400">Loading categories…</p>
+              )}
 
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {categories.map((category) => (
+                {categories.map((category, index) => (
                   <button
-                    key={category.label}
+                    key={category._id}
                     type="button"
                     onClick={() =>
-                      update(
-                        "category",
-                        category.value,
-                      )
+                      update("categoryId", category._id)
                     }
-                    className={`rounded-xl border p-4 text-xs font-bold ${
-                      draft.category ===
-                      category.value
+                    className={`rounded-xl border p-4 text-left text-xs font-bold ${
+                      draft.categoryId === category._id
                         ? "border-sky-300 bg-sky-50"
                         : ""
-                    }`}>
-                    <span className="mb-2 block text-xl">{category.icon} </span>
+                    }`}
+                  >
+                    <span className="mb-2 block text-xl">
+                      {["💊", "🍎", "🧴", "📱", "👗", "🏠"][index % 6]}
+                    </span>
 
-                    {category.label}
+                    {category.name}
+
+                    {category.requiresNafdac && (
+                      <span className="mt-1 block text-[9px] font-semibold text-emerald-600">
+                        Requires NAFDAC number
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
             </div>
 
             <div className="mt-5">
-              <FieldLabel>
-                Product Name
-              </FieldLabel>
+              <FieldLabel>Product Name</FieldLabel>
 
               <input
                 value={draft.name ?? ""}
-                onChange={(event) =>
-                  update(
-                    "name",
-                    event.target.value,
-                  )
-                }
+                onChange={(event) => update("name", event.target.value)}
                 className="w-full rounded-xl border p-3 text-sm"
                 placeholder="e.g. Vitamin C Complex 1000mg"
               />
             </div>
 
             <div className="mt-5">
-              <FieldLabel>
-                Product Description
-              </FieldLabel>
+              <FieldLabel>Product Description</FieldLabel>
 
               <textarea
                 value={draft.description ?? ""}
-                onChange={(event) =>
-                  update(
-                    "description",
-                    event.target.value,
-                  )
-                }
+                onChange={(event) => update("description", event.target.value)}
                 className="h-32 w-full rounded-xl border p-3 text-sm"
+                placeholder="Describe what you are selling (at least 10 characters)."
               />
             </div>
 
-            <div className="mt-5 max-w-xs">
-              <FieldLabel>Price</FieldLabel>
-
-              <div className="flex rounded-xl border">
-                <span className="p-3">₦</span>
+            <div className="mt-5 grid gap-5 sm:grid-cols-3">
+              <div>
+                <FieldLabel>Price (₦)</FieldLabel>
 
                 <input
                   type="number"
+                  min={0}
                   value={draft.price ?? ""}
                   onChange={(event) =>
-                    update(
-                      "price",
-                      Number(event.target.value),
-                    )
+                    update("price", Number(event.target.value))
                   }
-                  className="w-full p-3 text-sm outline-none"
+                  className="w-full rounded-xl border p-3 text-sm"
                   placeholder="0.00"
                 />
               </div>
 
-              <p className="mt-1 text-[10px] text-neutral-500">
-                Be specific and honest. Buyers make
-                decisions based on this.
-              </p>
+              <div>
+                <FieldLabel>Real Width / Height</FieldLabel>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    step="any"
+                    value={draft.width ?? ""}
+                    onChange={(event) =>
+                      update("width", Number(event.target.value))
+                    }
+                    className="w-full rounded-xl border p-3 text-sm"
+                    placeholder="Width"
+                  />
+                  <span>×</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step="any"
+                    value={draft.height ?? ""}
+                    onChange={(event) =>
+                      update("height", Number(event.target.value))
+                    }
+                    className="w-full rounded-xl border p-3 text-sm"
+                    placeholder="Height"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <FieldLabel>Unit</FieldLabel>
+
+                <select
+                  value={draft.sizeUnit ?? "CM"}
+                  onChange={(event) =>
+                    update("sizeUnit", event.target.value as LengthUnit)
+                  }
+                  className="w-full rounded-xl border p-3 text-sm"
+                >
+                  <option value="CM">Centimetres (cm)</option>
+                  <option value="INCH">Inches</option>
+                  <option value="FEET">Feet</option>
+                </select>
+              </div>
             </div>
 
-            <div className="mt-5 max-w-xs">
-              <FieldLabel>Size</FieldLabel>
-              <input
-                value={draft.size ?? ""}
-                onChange={(event) => update("size", event.target.value)}
-                className="w-full rounded-xl border p-3 text-sm"
-                placeholder="e.g. 10 x 20 cm"
-              />
-            </div>
+            <p className="mt-2 text-[10px] text-neutral-500">
+              Dimensions are used to scale the generated 3D model to real-world
+              size.
+            </p>
 
             <div className="mt-5">
-              <FieldLabel>
-                Product Images
-              </FieldLabel>
+              <FieldLabel>Product Views (6 required)</FieldLabel>
 
-              {draft.images.length > 0 && (
-                <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {draft.images.map((image, index) => (
+              <p className="mb-4 text-[10px] text-neutral-500">
+                Upload six real photos of the product — one per angle. JPEG,
+                PNG or WebP, max 5MB each.
+              </p>
+
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                {PRODUCT_VIEWS.map((view) => {
+                  const file = draft.images[view as ProductView];
+
+                  return (
                     <div
-                      key={`${image.name}-${index}`}
-                      className="relative overflow-hidden rounded-xl border"
+                      key={view}
+                      className="rounded-xl border"
                     >
-                      <img
-                        src={URL.createObjectURL(image)}
-                        alt={`Preview ${index + 1}`}
-                        className="size-full object-cover"
-                      />
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          update(
-                            "images",
-                            draft.images.filter(
-                              (_, i) => i !== index,
-                            ),
-                          )
-                        }
-                        className="absolute right-1 top-1 rounded-full bg-red-500 p-1 text-white hover:bg-red-600"
+                      <label
+                        className={`relative block aspect-square cursor-pointer overflow-hidden ${
+                          file ? "" : "border border-dashed"
+                        }`}
                       >
-                        ✕
-                      </button>
+                        {file ? (
+                          <>
+                            <img
+                              src={URL.createObjectURL(file)}
+                              alt={`${VIEW_LABELS[view]} view`}
+                              className="size-full object-cover"
+                            />
+
+                            <span className="absolute bottom-1 left-1 rounded bg-black/60 px-2 py-1 text-[9px] font-bold text-white">
+                              {VIEW_LABELS[view]}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="flex size-full flex-col items-center justify-center gap-1 text-[9px] text-neutral-400">
+                            <ImagePlus className="size-5 text-emerald-600" />
+                            {VIEW_LABELS[view]}
+                          </span>
+                        )}
+
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          className="hidden"
+                          onChange={(event) => {
+                            const value = event.target.files?.[0] ?? null;
+                            setViewImage(view as ProductView, value);
+                            event.target.value = "";
+                          }}
+                        />
+                      </label>
+
+                      {file && (
+                        <button
+                          type="button"
+                          onClick={() => removeViewImage(view as ProductView)}
+                          className="flex w-full items-center justify-center gap-1 border-t p-1.5 text-[9px] text-red-600 hover:bg-red-50"
+                        >
+                          <X className="size-3" /> Remove
+                        </button>
+                      )}
                     </div>
-                  ))}
-                </div>
-              )}
-
-              <label className="grid h-48 cursor-pointer place-items-center rounded-xl border border-dashed text-center">
-                <div>
-                  <ImagePlus className="mx-auto size-7 text-emerald-600" />
-
-                  <b className="mt-3 block text-sm">
-                    Drag & drop product photos here
-                  </b>
-
-                  <small className="text-neutral-500">
-                    Upload{" "}
-                    <b>real photos</b> of your
-                    actual product only.
-                  </small>
-
-                  {draft.images.length > 0 && (
-                    <p className="mt-2 text-xs font-bold text-emerald-600">
-                      {draft.images.length} image
-                      {draft.images.length !== 1
-                        ? "s"
-                        : ""}{" "}
-                      selected
-                    </p>
-                  )}
-                </div>
-
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  multiple
-                  className="hidden"
-                  onChange={(event) => {
-                    const newFiles = Array.from(
-                      event.target.files ?? [],
-                    );
-
-                    // Append new files to existing ones
-                    const combined = [
-                      ...draft.images,
-                      ...newFiles,
-                    ].slice(0, 6);
-
-                    update("images", combined);
-
-                    // Reset the input so user can select same file again
-                    event.target.value = "";
-                  }}
-                />
-              </label>
+                  );
+                })}
+              </div>
 
               <p className="mt-2 text-[10px] text-neutral-500">
-                Max 6 images. Click or drag to add
-                more. Click the ✕ to remove.
+                {completedViews.length}/6 views uploaded
+                {completedViews.length < 6
+                  ? " — all six are required."
+                  : " — ready."}
               </p>
             </div>
 
             <PrimaryButton
               className="mt-8"
-              onClick={() => {
-                setError(null);
-
-                if (!draft.name?.trim()) {
-                  setError(
-                    "Please enter a product name.",
-                  );
-                  return;
-                }
-
-                if (!draft.images.length) {
-                  setError(
-                    "Please upload at least one product image.",
-                  );
-                  return;
-                }
-
-                setStep(2);
-              }}
+              onClick={goNextFromBasics}
             >
               Next: Verification →
             </PrimaryButton>
@@ -543,29 +641,63 @@ export function NewListing() {
 
         {step === 2 && (
           <>
-            <h1 className="text-3xl font-black">
-              VERIFICATION.
-            </h1>
+            <h1 className="text-3xl font-black">VERIFICATION.</h1>
 
             <p className="mt-4 text-sm text-neutral-500">
-              Choose how you want to verify your
-              listing. This step will be connected
-              when the verification service is
-              available.
+              Regulated categories are checked against the official NAFDAC
+              registry before listing.
             </p>
 
-            <div className="mt-8 rounded-xl border p-5">
-              <FieldLabel>
-                Verification method
-              </FieldLabel>
+            {requiresNafdac ? (
+              <div className="mt-8 rounded-xl border p-5">
+                <FieldLabel>
+                  NAFDAC registration number
+                </FieldLabel>
 
-              <select className="w-full rounded border p-3">
-                <option>Not set</option>
-                <option>
-                  NAFDAC verification
-                </option>
-              </select>
-            </div>
+                <form
+                  className="flex flex-col gap-2 sm:flex-row"
+                  onSubmit={runNafdacCheck}
+                >
+                  <input
+                    value={draft.nafdacNumber ?? ""}
+                    onChange={(event) =>
+                      update("nafdacNumber", event.target.value)
+                    }
+                    className="min-w-0 flex-1 rounded border p-3 text-sm"
+                    placeholder="e.g. A1-12345"
+                  />
+
+                  <button
+                    type="submit"
+                    disabled={checkingNafdac}
+                    className="rounded bg-neutral-900 px-5 py-3 text-xs font-black text-white disabled:opacity-50"
+                  >
+                    {checkingNafdac ? "CHECKING…" : "VERIFY NUMBER"}
+                  </button>
+                </form>
+
+                {nafdacResult && (
+                  <p className="mt-3 rounded border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+                    ✓ {nafdacResult}
+                  </p>
+                )}
+
+                {nafdacError && (
+                  <p className="mt-3 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                    {nafdacError}
+                  </p>
+                )}
+
+                <p className="mt-2 text-[10px] text-neutral-500">
+                  The number you enter is validated when the listing is
+                  published. Pre-checking is optional.
+                </p>
+              </div>
+            ) : (
+              <div className="mt-8 rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-700">
+                ✓ No regulatory verification required for this category.
+              </div>
+            )}
 
             <div className="mt-8 flex justify-between">
               <button
@@ -577,7 +709,19 @@ export function NewListing() {
               </button>
 
               <PrimaryButton
-                onClick={() => setStep(3)}
+                onClick={() => {
+                  setError(null);
+                  if (
+                    requiresNafdac &&
+                    !(draft.nafdacNumber ?? "").trim()
+                  ) {
+                    setError(
+                      "This category requires a NAFDAC registration number.",
+                    );
+                    return;
+                  }
+                  setStep(3);
+                }}
               >
                 Continue to Review →
               </PrimaryButton>
@@ -594,9 +738,8 @@ export function NewListing() {
             </h1>
 
             <p className="mt-4 max-w-xl text-sm text-neutral-500">
-              Check everything before your listing
-              goes live. Once published, buyers can
-              see, verify, and purchase your product.
+              Check everything before your listing goes live. Once published,
+              buyers can see, verify, and purchase your product.
             </p>
 
             <div className="mt-8 space-y-4">
@@ -604,25 +747,16 @@ export function NewListing() {
                 title="Product Information"
                 onEdit={() => setStep(1)}
                 rows={[
-                  [
-                    "Product Name",
-                    draft.name ?? "",
-                  ],
-                  [
-                    "Price",
-                    draft.price
-                      ? `₦${draft.price}`
-                      : "",
-                  ],
-                  [
-                    "Description",
-                    draft.description ?? "",
-                  ],
+                  ["Category", selectedCategory?.name ?? "—"],
+                  ["Product Name", draft.name ?? ""],
+                  ["Price", draft.price ? `₦${draft.price}` : ""],
+                  ["Dimensions", `${draft.width ?? ""} × ${draft.height ?? ""} ${draft.sizeUnit ?? "CM"}`],
+                  ["Description", draft.description ?? ""],
                   [
                     "Images",
-                    draft.images.length
-                      ? `${draft.images.length} uploaded`
-                      : "None uploaded",
+                    completedViews.length === PRODUCT_VIEWS.length
+                      ? `${completedViews.length}/6 views uploaded`
+                      : `${completedViews.length}/6 views uploaded`,
                   ],
                 ]}
               />
@@ -631,8 +765,15 @@ export function NewListing() {
                 title="Verification"
                 onEdit={() => setStep(2)}
                 rows={[
-                  ["Method", "Not set"],
-                  ["Status", "Pending"],
+                  [
+                    "Method",
+                    requiresNafdac ? "NAFDAC registration" : "None required",
+                  ],
+                  [
+                    "NAFDAC Number",
+                    requiresNafdac ? (draft.nafdacNumber ?? "") || "Not set" : "—",
+                  ],
+                  ["Status", requiresNafdac ? "Pending publish validation" : "Not applicable"],
                 ]}
               />
 
@@ -647,18 +788,12 @@ export function NewListing() {
                 >
                   <input
                     type="checkbox"
-                    checked={
-                      confirmations[index]
-                    }
+                    checked={confirmations[index]}
                     onChange={() =>
-                      setConfirmations(
-                        (current) =>
-                          current.map(
-                            (value, i) =>
-                              i === index
-                                ? !value
-                                : value,
-                          ),
+                      setConfirmations((current) =>
+                        current.map((value, i) =>
+                          i === index ? !value : value,
+                        ),
                       )
                     }
                   />
@@ -673,9 +808,14 @@ export function NewListing() {
                 <div className="flex items-center gap-3">
                   <Loader2 className="size-5 animate-spin" />
                   <div>
-                    <p className="text-sm font-bold">Generating 3D model...</p>
+                    <p className="text-sm font-bold">
+                      {generationProgress < 100
+                        ? "Generating 3D model..."
+                        : "3D model ready!"}
+                    </p>
                     <p className="mt-1 text-xs text-neutral-400">
-                      This may take several minutes. Progress: {generationProgress}%
+                      This may take several minutes. Progress:{" "}
+                      {generationProgress}%
                     </p>
                   </div>
                 </div>
@@ -688,7 +828,9 @@ export function NewListing() {
                   <div className="mx-auto grid size-12 place-items-center rounded-full bg-emerald-500 text-white">
                     <Check className="size-6" />
                   </div>
-                  <h2 className="mt-4 text-lg font-black">Listing successful</h2>
+                  <h2 className="mt-4 text-lg font-black">
+                    Listing successful
+                  </h2>
                   <p className="mt-2 text-sm text-neutral-500">
                     Your product is now being prepared for the storefront.
                   </p>
@@ -700,13 +842,9 @@ export function NewListing() {
               generationStatus === "failed" &&
               error && (
                 <div className="mt-8 rounded-xl border border-red-200 bg-red-50 p-6">
-                  <p className="font-bold text-red-800">
-                    ⚠ Generation Failed
-                  </p>
+                  <p className="font-bold text-red-800">⚠ Generation Failed</p>
 
-                  <p className="mt-2 text-sm text-red-700">
-                    {error}
-                  </p>
+                  <p className="mt-2 text-sm text-red-700">{error}</p>
 
                   <button
                     type="button"
@@ -727,9 +865,11 @@ export function NewListing() {
                 type="button"
                 disabled={isPublishing}
                 onClick={() => setStep(2)}
-                className="rounded-full border px-5 py-3 disabled:opacity-50">
+                className="rounded-full border px-5 py-3 disabled:opacity-50"
+              >
                 ← Back
               </button>
+
               <PrimaryButton
                 disabled={
                   !confirmations.every(Boolean) ||

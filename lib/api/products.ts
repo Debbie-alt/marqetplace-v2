@@ -1,366 +1,303 @@
 "use client";
 
-import type { BackendProduct, Product,ProductCategory,} from "@/lib/domain/product";
+import { request, resolveApiUrl } from "./client";
+import type {
+  BackendProduct,
+  LengthUnit,
+  Model3dStatus,
+  Product,
+  ProductStatus,
+} from "@/lib/domain/product";
 
-const API_ORIGIN = (
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000"
-).replace(/\/$/, "");
-const API_ROOT = `${API_ORIGIN}/api`;
+export const PRODUCT_VIEWS = [
+  "FRONT",
+  "BACK",
+  "LEFT",
+  "RIGHT",
+  "TOP",
+  "BOTTOM",
+] as const;
+
+export type ProductView = (typeof PRODUCT_VIEWS)[number];
 
 export interface CreateProductInput {
-  name: string;
-  category: ProductCategory;
+  categoryId: string;
+  productName: string;
   description: string;
   price: number;
-  size: string;
-  photos: File[];
+  widthValue: number;
+  heightValue: number;
+  sizeUnit?: LengthUnit;
+  /** Required when the selected category requires NAFDAC registration. */
+  nafdacNumber?: string;
 }
 
-export interface CreateProductResponse {
+export interface ProductCard {
+  id: string;
+  name: string;
+  price: number;
+  coverImage: string | null;
+}
+
+export interface ProductListResult {
+  products: ProductCard[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+  hasNextPage: boolean;
+}
+
+export interface ProductFilters {
+  categoryId?: string;
+  nafdacVerified?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+export interface Product3dStatus {
   productId: string;
-  taskId: string;
-  status: string;
+  model3dStatus: Model3dStatus;
+  model3dUrl: string | null;
+  status: ProductStatus;
 }
 
-export interface UploadProductImagesResponse {
-  imageUrls: string[];
+function categoryNameOf(backend: BackendProduct): string {
+  if (!backend.category) return "";
+  return typeof backend.category === "string"
+    ? ""
+    : backend.category.name;
 }
 
-export interface GenerateProductModelResponse {
-  productId: string;
-  modelUrl: string | null;
-  modelStatus: Product["modelStatus"];
+function categoryIdOf(backend: BackendProduct): string | undefined {
+  if (!backend.category) return undefined;
+  return typeof backend.category === "string"
+    ? backend.category
+    : backend.category._id;
 }
 
-/**
- * Converts the backend's relative generated-model URL
- * into a browser-accessible absolute URL.
- *
- * Backend:
- *   /generated/p_123.glb
- *
- * Frontend:
- *   http://localhost:4000/generated/p_123.glb
- */
-function resolveBackendUrl(
-  url: string | null | undefined,
-): string | null {
-  if (!url) return null;
-
-  if (url.startsWith("http://") || url.startsWith("https://")) {
-    return url;
-  }
-
-  return `${API_ORIGIN}${url.startsWith("/") ? "" : "/"}${url}`;
+function categoryRequiresNafdac(backend: BackendProduct): boolean {
+  if (!backend.category) return Boolean(backend.nafdacVerified);
+  return typeof backend.category === "string"
+    ? Boolean(backend.nafdacVerified)
+    : Boolean(backend.category.requiresNafdac);
 }
 
-/**
- * Convert raw backend status into the status expected
- * by the frontend.
- */
 function mapModelStatus(
-  status?: string,
+  model3dStatus: Model3dStatus | undefined,
+  modelUrl: string | null,
 ): Product["modelStatus"] {
-  switch (status) {
-    case "queued":
+  if (modelUrl) return "ready";
+  switch (model3dStatus) {
+    case "PENDING":
       return "queued";
-
-    case "running":
+    case "PROCESSING":
       return "generating";
-
-    case "success":
+    case "COMPLETE":
       return "ready";
-
-    case "failed":
-    case "banned":
-    case "expired":
-    case "cancelled":
+    case "FAILED":
       return "failed";
-
     default:
       return "not_requested";
   }
 }
 
-/**
- * Convert backend product into the frontend Product model.
- */
-function mapBackendProduct(
-  backendProduct: BackendProduct,
-): Product {
-  const modelUrl = resolveBackendUrl(
-    backendProduct.modelUrl ?? backendProduct.modelUrls?.glb,
-  );
-
-  const images = (backendProduct.images ?? [])
-    .map((image) => resolveBackendUrl(image))
-    .filter((image): image is string => Boolean(image));
-
-  if (backendProduct.imageUrl) {
-    const imageUrl = resolveBackendUrl(backendProduct.imageUrl);
-    if (imageUrl && !images.includes(imageUrl)) images.unshift(imageUrl);
+function mapModelProgress(
+  model3dStatus: Model3dStatus | undefined,
+  hasModel: boolean,
+): number {
+  if (hasModel) return 100;
+  switch (model3dStatus) {
+    case "PENDING":
+      return 10;
+    case "PROCESSING":
+      return 60;
+    case "COMPLETE":
+      return 100;
+    default:
+      return 0;
   }
+}
+
+function sizeLabel(backend: BackendProduct): string {
+  const width = backend.widthValue ?? 0;
+  const height = backend.heightValue ?? 0;
+  if (!width && !height) return "";
+  return `${width} × ${height} ${backend.sizeUnit ?? "CM"}`;
+}
+
+function mapBackendProduct(backend: BackendProduct): Product {
+  const modelUrl = resolveApiUrl(backend.model3dUrl);
+
+  const images = (backend.images ?? [])
+    .map((image) => resolveApiUrl(image.url))
+    .filter((url): url is string => Boolean(url));
+
+  const front = backend.images?.find((image) => image.view === "FRONT")?.url;
+  const frontUrl = resolveApiUrl(front);
+  if (frontUrl && !images.includes(frontUrl)) images.unshift(frontUrl);
 
   return {
-    id: backendProduct.id,
-    name: backendProduct.name,
-
-    description: backendProduct.description ?? "",
-    price: backendProduct.price ?? 0,
-    category: backendProduct.category ?? "other",
-    size: backendProduct.size ?? "",
+    id: (backend._id ?? "") as string,
+    name: backend.productName ?? "",
+    description: backend.description ?? "",
+    price: backend.price ?? 0,
+    size: sizeLabel(backend),
+    category: categoryNameOf(backend),
+    categoryId: categoryIdOf(backend),
+    isNafdacVerifiable:
+      categoryRequiresNafdac(backend) || Boolean(backend.nafdacVerified),
+    nafdacNumber: backend.nafdacNumber,
     images,
-
-    isNafdacVerifiable: backendProduct.isNafdacVerifiable ?? false,
-
     modelUrl,
     model3dUrl: modelUrl,
-
-    modelStatus: modelUrl
-      ? "ready"
-      : mapModelStatus(backendProduct.status),
-    modelProgress: backendProduct.progress ?? 0,
+    modelStatus: mapModelStatus(backend.model3dStatus, modelUrl),
+    modelProgress: mapModelProgress(backend.model3dStatus, Boolean(modelUrl)),
+    model3dStatus: backend.model3dStatus,
+    productStatus: backend.status,
   };
 }
 
 /**
- * Create a product and start Tripo 3D generation.
- *
- * Backend expects:
- *
- * POST /api/products
- * multipart/form-data
- *
- * photos
- * angles
- * name
+ * POST /products — creates a draft product. Requires an authenticated
+ * user with a store profile. The product's 6 images are attached next
+ * via uploadProductImages.
  */
-export async function createProduct(
+export function createProduct(
   input: CreateProductInput,
-): Promise<CreateProductResponse> {
-  if (!input.photos.length) {
-    throw new Error("At least one product image is required.");
-  }
+): Promise<BackendProduct> {
+  const body: Record<string, unknown> = {
+    categoryId: input.categoryId,
+    productName: input.productName,
+    description: input.description,
+    price: input.price,
+    widthValue: input.widthValue,
+    heightValue: input.heightValue,
+    sizeUnit: input.sizeUnit ?? "CM",
+  };
+  if (input.nafdacNumber) body.nafdacNumber = input.nafdacNumber;
 
-  const formData = new FormData();
-
-  formData.append("name", input.name);
-  formData.append("category", input.category);
-  formData.append("description", input.description);
-  formData.append("price", String(input.price));
-  formData.append("size", input.size);
-
-  const angles = ["front", "left", "back", "right"].slice(
-    0,
-    input.photos.length,
-  );
-  formData.append("angles", JSON.stringify(angles));
-
-  input.photos.forEach((photo) => {
-    formData.append("photos", photo);
-  });
-
-  const response = await fetch(`${API_ROOT}/products`, {
+  return request<BackendProduct>("/products", {
     method: "POST",
-    body: formData,
+    body: JSON.stringify(body),
   });
-
-  let data: {
-    productId?: string;
-    taskId?: string;
-    status?: string;
-    error?: string;
-    details?: { message?: string };
-  };
-
-  try {
-    data = await response.json();
-  } catch {
-    throw new Error(
-      "The server returned an invalid response.",
-    );
-  }
-
-  if (!response.ok) {
-    throw new Error(
-      data?.error ||
-        data?.details?.message ||
-        "Unable to create product.",
-    );
-  }
-
-  return {
-    productId: data.productId ?? "",
-    taskId: data.taskId ?? "",
-    status: data.status ?? "",
-  };
-}
-
-/** Uploads images through our backend; it never contacts the 3D provider. */
-export async function uploadProductImages(
-  productId: string,
-  images: File[],
-): Promise<UploadProductImagesResponse> {
-  if (!images.length) {
-    throw new Error("At least one product image is required.");
-  }
-
-  const formData = new FormData();
-  images.forEach((image) => formData.append("images", image));
-
-  const response = await fetch(`${API_ROOT}/products/${productId}/images`, {
-    method: "POST",
-    body: formData,
-  });
-
-  const data = (await response.json().catch(() => ({}))) as {
-    imageUrls?: string[];
-    error?: string;
-  };
-
-  if (!response.ok) {
-    throw new Error(data.error ?? "Unable to upload product images.");
-  }
-
-  return { imageUrls: data.imageUrls ?? [] };
-}
-
-/** Starts model generation through our backend only. */
-export async function generateProductModel(
-  productId: string,
-  imageUrls: string[] = [],
-): Promise<GenerateProductModelResponse> {
-  const response = await fetch(`${API_ROOT}/products/${productId}/model`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ imageUrls }),
-  });
-
-  const data = (await response.json().catch(() => ({}))) as {
-    productId?: string;
-    modelUrl?: string | null;
-    modelStatus?: Product["modelStatus"];
-    error?: string;
-  };
-
-  if (!response.ok) {
-    throw new Error(data.error ?? "Unable to start 3D model generation.");
-  }
-
-  return {
-    productId: data.productId ?? productId,
-    modelUrl: resolveBackendUrl(data.modelUrl),
-    modelStatus: data.modelStatus ?? "queued",
-  };
-}
-
-export async function getProductGenerationStatus(
-  productId: string,
-  taskId?: string,
-): Promise<{
-  productId: string;
-  modelUrl: string | null;
-  modelStatus: Product["modelStatus"];
-  modelProgress: number;
-}> {
-  const qs = taskId ? `?taskId=${encodeURIComponent(taskId)}` : "";
-  const response = await fetch(`${API_ROOT}/products/${productId}/status${qs}`, {
-    cache: "no-store",
-  });
-
-  const data = (await response.json().catch(() => null)) as
-    | BackendProduct
-    | { error?: string }
-    | null;
-
-  if (!response.ok || !data || !("id" in data)) {
-    throw new Error(
-      data && "error" in data
-        ? data.error ?? "Unable to check model generation status."
-        : "Unable to check model generation status.",
-    );
-  }
-
-  return {
-    productId: data.id,
-    modelUrl: resolveBackendUrl(data.modelUrl ?? data.modelUrls?.glb),
-    modelStatus: data.modelUrl || data.modelUrls?.glb
-      ? "ready"
-      : mapModelStatus(data.status),
-    modelProgress: data.progress ?? 0,
-  };
 }
 
 /**
- * Get the generation status for a product.
- *
- * Backend:
- * GET /api/products/:id/status
+ * POST /products/:id/images — multipart upload with exactly six
+ * single-file fields named FRONT, BACK, LEFT, RIGHT, TOP, BOTTOM.
+ * On success the product flips to PENDING_3D and Tripo generation is queued.
  */
-export interface ProductFilters {
-  category?: ProductCategory | "";
-  verified?: boolean;
+export function uploadProductImages(
+  productId: string,
+  images: Record<ProductView, File>,
+): Promise<BackendProduct> {
+  const missing = PRODUCT_VIEWS.filter((view) => !images[view]);
+  if (missing.length) {
+    throw new Error(
+      `Missing image for view: ${missing.join(", ")}. All 6 views are required.`,
+    );
+  }
+
+  const formData = new FormData();
+  for (const view of PRODUCT_VIEWS) {
+    formData.append(view, images[view], images[view].name);
+  }
+
+  return request<BackendProduct>(`/products/${productId}/images`, {
+    method: "POST",
+    body: formData,
+  });
 }
 
+/** GET /products/:id/3d-status — public poll endpoint. */
+export function getProduct3dStatus(
+  productId: string,
+): Promise<Product3dStatus> {
+  return request<Product3dStatus>(`/products/${productId}/3d-status`);
+}
+
+interface BackendListResult {
+  data: Array<{
+    _id: string;
+    productName: string;
+    price: number;
+    coverImage: string | null;
+  }>;
+  pagination: {
+    totalItems: number;
+    totalPages: number;
+    currentPage: number;
+    pageSize: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+}
+
+/** GET /products — paginated public catalogue of ACTIVE products. */
+export async function getProductsPage(
+  filters: ProductFilters = {},
+): Promise<ProductListResult> {
+  const params = new URLSearchParams();
+  if (filters.categoryId) params.set("category", filters.categoryId);
+  if (filters.nafdacVerified) params.set("nafdacVerified", "true");
+  if (filters.page) params.set("page", String(filters.page));
+  if (filters.limit) params.set("limit", String(filters.limit));
+
+  const query = params.toString();
+  const result = await request<BackendListResult>(
+    `/products${query ? `?${query}` : ""}`,
+  );
+
+  return {
+    products: result.data.map((item) => ({
+      id: item._id,
+      name: item.productName,
+      price: item.price,
+      coverImage: item.coverImage,
+    })),
+    page: result.pagination.currentPage,
+    pageSize: result.pagination.pageSize,
+    totalItems: result.pagination.totalItems,
+    totalPages: result.pagination.totalPages,
+    hasNextPage: result.pagination.hasNextPage,
+  };
+}
+
+/** Convenience list (first page) — used by the landing page. */
 export async function getProducts(
   filters: ProductFilters = {},
 ): Promise<Product[]> {
-  const params = new URLSearchParams();
-  if (filters.category) params.set("category", filters.category);
-  if (filters.verified) params.set("isNafdacVerifiable", "true");
-
-  const query = params.toString();
-  const response = await fetch(
-    `${API_ROOT}/products${query ? `?${query}` : ""}`,
-    {
-    cache: "no-store",
-    },
-  );
-
-  if (!response.ok) {
-    throw new Error("Unable to fetch products.");
-  }
-
-  const data = await response.json();
-
-  if (!Array.isArray(data)) {
-    return [];
-  }
-
-  return data.map(mapBackendProduct);
+  const result = await getProductsPage(filters);
+  return result.products.map((card) => ({
+    id: card.id,
+    name: card.name,
+    description: "",
+    price: card.price,
+    size: "",
+    category: "",
+    isNafdacVerifiable: false,
+    images: card.coverImage ? [card.coverImage] : [],
+    modelUrl: null,
+    model3dUrl: null,
+    modelStatus: "not_requested",
+    modelProgress: 0,
+  }));
 }
 
-/** Get one product by ID from the backend detail endpoint. */
+/** GET /products/:id — full product detail (public, categories populated). */
 export async function getProductById(
   productId: string,
 ): Promise<Product | null> {
-  const response = await fetch(`${API_ROOT}/products/${productId}`, {
-    cache: "no-store",
-  });
-
-  if (response.status === 404) return null;
-
-  const data = (await response.json().catch(() => null)) as
-    | BackendProduct
-    | { error?: string; message?: string }
-    | null;
-
-  if (!response.ok) {
-    const message =
-      data && "error" in data
-        ? data.error
-        : data && "message" in data
-          ? data.message
-          : undefined;
-
-    throw new Error(message ?? "Unable to fetch product.");
+  try {
+    const backend = await request<BackendProduct>(`/products/${productId}`);
+    return mapBackendProduct(backend);
+  } catch (error) {
+    if (error instanceof Error && /not found/i.test(error.message)) {
+      return null;
+    }
+    throw error;
   }
-
-  if (!data || !("id" in data)) {
-    throw new Error("The server returned an invalid product.");
-  }
-
-  return mapBackendProduct(data);
 }
 
 export const getProduct = getProductById;

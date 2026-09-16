@@ -299,7 +299,9 @@ export function ProductDetail({ id }: { id: string }) {
             <ProductInfo product={product} />
           </div>
 
-          {product.isNafdacVerifiable && <NafdacVerification />}
+          {product.isNafdacVerifiable && (
+            <NafdacVerification initialNumber={product.nafdacNumber} />
+          )}
 
           <ViewerCard product={product} />
 

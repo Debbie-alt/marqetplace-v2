@@ -1,68 +1,41 @@
-export type LoginPayload = {
+"use client";
+
+import { request } from "./client";
+import type { SessionUser } from "@/lib/auth/token";
+
+export interface LoginPayload {
   email: string;
   password: string;
-};
+}
 
-export type SignupPayload = {
-  firstName: string;
-  lastName: string;
+export interface SignupPayload {
   email: string;
-  phone: string;
   password: string;
-  role: "buyer" | "seller";
-};
-
-export type AuthResponse = {
-  message: string;
-  token?: string;
-  accessToken?: string;
-  user?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    role: "buyer" | "seller";
-  };
-};
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
-
-async function handleResponse<T>(response: Response): Promise<T> {
-  const data = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    throw new Error(
-      data?.message || data?.error || "Something went wrong"
-    );
-  }
-
-  return data;
+  fullName: string;
 }
 
-export async function login(
-  payload: LoginPayload
-): Promise<AuthResponse> {
-  const response = await fetch(`${API_URL}/api/auth/login`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(payload),
-  });
-
-  return handleResponse<AuthResponse>(response);
+export interface AuthResponse {
+  accessToken: string;
+  user: SessionUser;
 }
 
-export async function signup(
-  payload: SignupPayload
-): Promise<AuthResponse> {
-  const response = await fetch(`${API_URL}/api/auth/signup`, {
+/** POST /auth/register — public. */
+export function signup(payload: SignupPayload): Promise<AuthResponse> {
+  return request<AuthResponse>("/auth/register", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
     body: JSON.stringify(payload),
   });
+}
 
-  return handleResponse<AuthResponse>(response);
+/** POST /auth/login — public. */
+export function login(payload: LoginPayload): Promise<AuthResponse> {
+  return request<AuthResponse>("/auth/login", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+/** GET /auth/me — requires a valid bearer token. */
+export function getMe(): Promise<SessionUser> {
+  return request<SessionUser>("/auth/me");
 }

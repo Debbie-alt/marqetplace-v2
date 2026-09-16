@@ -1,47 +1,45 @@
 "use client";
 
 import Link from "next/link";
-import { Check, ChevronDown, Heart, Box } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Box, ChevronDown, Heart } from "lucide-react";
+import { memo, useState } from "react";
 
 import { Header } from "@/components/header";
 import { useMarketplace } from "@/components/marketplace-provider";
-import { CartButton, naira, StarRating } from "@/components/ui";
+import { CartButton, naira } from "@/components/ui";
 import { StorefrontHero } from "./storefront-hero";
-import { getProducts } from "@/lib/api/products";
+import { getProductsPage } from "@/lib/api/products";
+import { getCategories } from "@/lib/api/categories";
 import { useQuery } from "@tanstack/react-query";
-import type {Product, ProductCategory,} from "@/lib/domain/product";
+/* eslint-disable @next/next/no-img-element */
 
-const labels: Record<ProductCategory, string> = {
-  food: "Food & Beverages",
-  drug: "Pharmaceuticals",
-  health: "Health",
-  fashion: "Fashion",
-  electronics: "Electronics",
-  other: "Home & Living",
-};
+type CategoryFilter = { _id: string; name: string };
 
-function Card({ product }: { product: Product }) {
-  const {addToCart, wishlist, toggleWishlist,} = useMarketplace();
+const Card = memo(function Card({
+  id,
+  name,
+  price,
+  image,
+}: {
+  id: string;
+  name: string;
+  price: number;
+  image: string | null;
+}) {
+  const { addToCart, wishlist, toggleWishlist } = useMarketplace();
   const [added, setAdded] = useState(false);
-  const wish = wishlist.has(product.id);
-
-  const has3DModel =  Boolean(product.modelUrl);
-
-  const isGenerating =
-    product.modelStatus === "generating" ||
-    product.modelStatus === "queued";
+  const wish = wishlist.has(id);
 
   return (
     <article className="group border border-neutral-200 bg-white p-2 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-md">
       <Link
-        href={`/products/${product.id}`}
+        href={`/products/${id}`}
         className="relative block aspect-square overflow-hidden bg-neutral-100"
       >
-        {product.images[0] ? (
+        {image ? (
           <img
-            src={product.images[0]}
-            alt={product.name}
+            src={image}
+            alt={name}
             className="size-full object-cover transition duration-500 group-hover:scale-105"
           />
         ) : (
@@ -49,57 +47,25 @@ function Card({ product }: { product: Product }) {
             <Box className="size-10 text-neutral-300" />
           </div>
         )}
-
-        {product.isNafdacVerifiable && (
-          <span className="absolute left-1 top-1 flex items-center gap-1 bg-white px-2 py-1 text-sm font-bold text-emerald-500">
-            <Check className="size-2" />
-            CHECK AUTHENTICITY
-          </span>
-        )}
-
-        {has3DModel && (
-          <span className="absolute right-1 top-1 rounded-full bg-neutral-900 px-2 py-1 text-sm font-bold text-white">
-            3D AVAILABLE
-          </span>
-        )}
-
       </Link>
 
       <div className="pt-3">
-        <p className="text-sm font-black uppercase">
-          {labels[product.category]}
-        </p>
-
         <Link
-          href={`/products/${product.id}`}
+          href={`/products/${id}`}
           className="block min-h-9 text-xs font-bold"
         >
-          {product.name}
+          {name}
         </Link>
 
-        <p className="text-[9px] text-neutral-500">
-          by Marqetplace Store
-        </p>
+        <p className="text-[9px] text-neutral-500">by Marqetplace Store</p>
 
-        <StarRating />
-
-        {product.price > 0 && (
-          <p className="text-base font-black">
-            {naira(product.price)}
-          </p>
-        )}
-
-        {has3DModel && (
-          <p className="mt-1 text-[9px] font-bold text-sky-600">
-            ✦ 3D MODEL READY
-          </p>
-        )}
+        {price > 0 && <p className="mt-1 text-base font-black">{naira(price)}</p>}
 
         <div className="mt-2 flex gap-2">
           <CartButton
             className="flex-1 !rounded-full !px-2 !py-2 text-[10px]"
             onClick={() => {
-              addToCart(product.id);
+              addToCart(id);
               setAdded(true);
 
               setTimeout(() => {
@@ -112,54 +78,49 @@ function Card({ product }: { product: Product }) {
 
           <button
             type="button"
-            onClick={() =>
-              toggleWishlist(product.id)
-            }
+            onClick={() => toggleWishlist(id)}
             className={`transition ${wish ? "scale-110 text-red-500" : "text-neutral-400"}`}
           >
-            <Heart
-              className="size-4"
-              fill={
-                wish ? "currentColor" : "none"
-              }
-            />
+            <Heart className="size-4" fill={wish ? "currentColor" : "none"} />
           </button>
         </div>
       </div>
     </article>
   );
-}
+});
+
+const PAGE_SIZE = 8;
 
 export function Storefront() {
-  const [category, setCategory] =
-    useState<ProductCategory | "">("");
-
+  const [category, setCategory] = useState("");
   const [nafdacVerifiable, setNafdacVerifiable] = useState(false);
-
   const [sort, setSort] = useState("trusted");
-
   const [page, setPage] = useState(1);
 
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["products", category, nafdacVerifiable],
+  const categoriesQuery = useQuery({
+    queryKey: ["categories"],
+    queryFn: getCategories,
+    staleTime: 60_000,
+  });
+
+  const productsQuery = useQuery({
+    queryKey: ["products-page", category, nafdacVerifiable, page],
     queryFn: () =>
-      getProducts({
-        category,
-        verified: nafdacVerifiable,
+      getProductsPage({
+        categoryId: category || undefined,
+        nafdacVerified: nafdacVerifiable || undefined,
+        page,
+        limit: PAGE_SIZE,
       }),
   });
 
-  const result = useMemo(() => {
-    return [...(data ?? [])].sort((a, b) => {
-        if (sort === "new") {
-          return b.id.localeCompare(a.id);
-        }
-        return 0;
-      });
-  }, [
-    data,
-    sort,
-  ]);
+  const data = productsQuery.data;
+  const products = data?.products ?? [];
+  const totalPages = data?.totalPages ?? 1;
+
+  const sorted = [...products].sort((a, b) =>
+    sort === "new" ? b.id.localeCompare(a.id) : 0,
+  );
 
   const clear = () => {
     setCategory("");
@@ -167,7 +128,16 @@ export function Storefront() {
     setPage(1);
   };
 
-  const chips = [ category && labels[category], nafdacVerifiable && "NAFDAC VERIFIABLE",].filter(Boolean);
+  const categories: CategoryFilter[] = (categoriesQuery.data ?? []).map(
+    (categoryItem) => ({ _id: categoryItem._id, name: categoryItem.name }),
+  );
+
+  const activeCategory = categories.find((item) => item._id === category);
+
+  const chips = [
+    activeCategory?.name,
+    nafdacVerifiable && "NAFDAC VERIFIABLE",
+  ].filter(Boolean);
 
   return (
     <>
@@ -188,7 +158,8 @@ export function Storefront() {
               nafdacVerifiable
                 ? "bg-white text-neutral-900"
                 : "border border-neutral-600"
-            }`}>
+            }`}
+          >
             NAFDAC VERIFIABLE
           </button>
 
@@ -198,31 +169,29 @@ export function Storefront() {
             Category
           </h2>
 
-          {(
-            Object.keys(labels) as ProductCategory[]
-          ).map((categoryValue) => (
+          {categories.length === 0 && (
+            <p className="text-[10px] text-neutral-500">
+              {categoriesQuery.isLoading ? "Loading…" : "No categories yet."}
+            </p>
+          )}
+
+          {categories.map((categoryItem) => (
             <label
-              key={categoryValue}
+              key={categoryItem._id}
               className="mb-2 flex gap-2 text-[10px]"
             >
               <input
-                checked={
-                  category === categoryValue
-                }
+                checked={category === categoryItem._id}
                 onChange={() =>
                   setCategory(
-                    category === categoryValue
-                      ? ""
-                      : categoryValue,
+                    category === categoryItem._id ? "" : categoryItem._id,
                   )
                 }
                 type="checkbox"
               />
-
-              {labels[categoryValue]}
+              {categoryItem.name}
             </label>
           ))}
-
         </aside>
 
         {/* PRODUCTS */}
@@ -242,32 +211,21 @@ export function Storefront() {
             ))}
 
             <span className="ml-auto border px-3 py-1">
-              {result.length} RESULTS
+              {productsQuery.data?.totalItems ?? 0} RESULTS
             </span>
 
-            {/* REAL DROPDOWN */}
             <span className="relative">
               <select
                 value={sort}
                 onChange={(event) => {
-                  setSort(
-                    event.target.value,
-                  );
+                  setSort(event.target.value);
                   setPage(1);
                 }}
                 className="appearance-none rounded-full bg-neutral-900 py-2 pl-3 pr-8 text-white outline-none"
               >
-                <option value="trusted">
-                  Sort: Most Trusted
-                </option>
-
-                <option value="rating">
-                  Highest Rated
-                </option>
-
-                <option value="new">
-                  Newest
-                </option>
+                <option value="trusted">Sort: Most Trusted</option>
+                <option value="rating">Highest Rated</option>
+                <option value="new">Newest</option>
               </select>
 
               <ChevronDown className="pointer-events-none absolute right-2 top-1/2 size-3 -translate-y-1/2 text-white" />
@@ -275,11 +233,9 @@ export function Storefront() {
           </div>
 
           {/* LOADING */}
-          {isLoading && (
+          {productsQuery.isLoading && (
             <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-              {Array.from({
-                length: 8,
-              }).map((_, index) => (
+              {Array.from({ length: 8 }).map((_, index) => (
                 <div
                   key={index}
                   className="aspect-[.7] animate-pulse bg-neutral-200"
@@ -289,7 +245,7 @@ export function Storefront() {
           )}
 
           {/* ERROR */}
-          {isError && (
+          {productsQuery.isError && (
             <div className="rounded-xl border bg-white p-10 text-center">
               <p className="text-sm text-neutral-500">
                 Unable to load products.
@@ -297,7 +253,7 @@ export function Storefront() {
 
               <button
                 type="button"
-                onClick={() => refetch()}
+                onClick={() => productsQuery.refetch()}
                 className="mt-3 rounded-full bg-neutral-900 px-5 py-2 text-xs font-bold text-white"
               >
                 Try again
@@ -306,63 +262,55 @@ export function Storefront() {
           )}
 
           {/* PRODUCTS */}
-          {!isLoading &&
-            !isError &&
-            result.length > 0 && (
+          {!productsQuery.isLoading &&
+            !productsQuery.isError &&
+            sorted.length > 0 && (
               <>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  {result
-                    .slice(
-                      (page - 1) * 8,
-                      page * 8,
-                    )
-                    .map((product) => (
-                      <Card
-                        key={product.id}
-                        product={product}
-                      />
-                    ))}
-                </div>
-
-                <div className="mt-6 flex justify-center gap-1">
-                  {Array.from({
-                    length: Math.ceil(
-                      result.length / 8,
-                    ),
-                  }).map((_, index) => (
-                    <button
-                      type="button"
-                      key={index}
-                      onClick={() =>
-                        setPage(index + 1)
-                      }
-                      className={`size-7 rounded ${
-                        page === index + 1
-                          ? "bg-sky-200"
-                          : "bg-neutral-900 text-white"
-                      }`}
-                    >
-                      {index + 1}
-                    </button>
+                  {sorted.map((product) => (
+                    <Card
+                      key={product.id}
+                      id={product.id}
+                      name={product.name}
+                      price={product.price}
+                      image={product.coverImage}
+                    />
                   ))}
                 </div>
+
+                {totalPages > 1 && (
+                  <div className="mt-6 flex justify-center gap-1">
+                    {Array.from({ length: totalPages }).map((_, index) => (
+                      <button
+                        type="button"
+                        key={index}
+                        onClick={() => setPage(index + 1)}
+                        className={`size-7 rounded ${
+                          page === index + 1
+                            ? "bg-sky-200"
+                            : "bg-neutral-900 text-white"
+                        }`}
+                      >
+                        {index + 1}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </>
             )}
 
           {/* EMPTY */}
-          {!isLoading &&
-            !isError &&
-            result.length === 0 && (
+          {!productsQuery.isLoading &&
+            !productsQuery.isError &&
+            sorted.length === 0 && (
               <div className="rounded-xl border border-dashed bg-white p-10 text-center">
                 <Box className="mx-auto size-10 text-neutral-300" />
 
-                <p className="mt-3 font-bold">
-                  No products found
-                </p>
+                <p className="mt-3 font-bold">No products found</p>
 
                 <p className="mt-1 text-sm text-neutral-500">
-                  Products uploaded by sellers
-                  will appear here.
+                  Products uploaded by sellers will appear here once they are
+                  verified.
                 </p>
 
                 {(category || nafdacVerifiable) && (

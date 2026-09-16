@@ -1,14 +1,3 @@
-export const productCategories = [
-  "food",
-  "drug",
-  "health",
-  "fashion",
-  "electronics",
-  "other",
-] as const;
-
-export type ProductCategory = (typeof productCategories)[number];
-
 export const productModelStatuses = [
   "not_requested",
   "queued",
@@ -19,22 +8,55 @@ export const productModelStatuses = [
 
 export type ProductModelStatus = (typeof productModelStatuses)[number];
 
+export type ProductStatus =
+  | "DRAFT"
+  | "PENDING_3D"
+  | "NEEDS_REVIEW"
+  | "ACTIVE"
+  | "REJECTED";
+
+export type Model3dStatus =
+  | "PENDING"
+  | "PROCESSING"
+  | "COMPLETE"
+  | "FAILED";
+
+export type LengthUnit = "CM" | "INCH" | "FEET";
+
+export interface Category {
+  _id: string;
+  name: string;
+  requiresNafdac: boolean;
+  description?: string;
+}
+
+export interface ProductImage {
+  view: string;
+  url: string;
+  key: string;
+}
+
+/**
+ * Frontend display model — the shape components consume.
+ * Built from the NestJS backend's product documents.
+ */
 export interface Product {
   id: string;
   name: string;
   description: string;
   price: number;
   size: string;
-  category: ProductCategory;
-  images: string[];
-
+  category: string;
+  categoryId?: string;
   isNafdacVerifiable: boolean;
-
+  nafdacNumber?: string;
+  images: string[];
   modelUrl: string | null;
   model3dUrl?: string | null;
-
   modelStatus: ProductModelStatus;
   modelProgress: number;
+  productStatus?: ProductStatus;
+  model3dStatus?: Model3dStatus;
 }
 
 export interface ProductModelGenerationStatus {
@@ -45,43 +67,29 @@ export interface ProductModelGenerationStatus {
 }
 
 /**
- * Raw product shape returned by the current Express backend.
+ * Raw product document returned by the real NestJS backend
+ * (GET /products/:id). Fields differ from the old mock backend.
  */
 export interface BackendProduct {
-  id: string;
-  name: string;
+  _id?: string;
+  productName?: string;
   description?: string;
   price?: number;
-  category?: ProductCategory;
-  size?: string;
-  imageUrl?: string | null;
-  images?: string[];
-  isNafdacVerifiable?: boolean;
-  taskId?: string;
-
-  status:
-    | "queued"
-    | "running"
-    | "success"
-    | "failed"
-    | "banned"
-    | "expired"
-    | "cancelled"
-    | string;
-
-  progress?: number;
-
-  mode?: "single" | "multiview";
-
-  angles?: string[];
-
-  modelUrls?: {
-    glb?: string | null;
-  } | null;
-
-  modelUrl?: string | null;
-
-  thumbnailUrl?: string | null;
-
+  widthValue?: number;
+  heightValue?: number;
+  sizeUnit?: LengthUnit;
+  status?: ProductStatus;
+  model3dStatus?: Model3dStatus;
+  model3dUrl?: string | null;
+  images?: ProductImage[];
+  category?:
+    | string
+    | { _id: string; name: string; requiresNafdac: boolean };
+  vendor?: string | { _id: string; storeName: string; logoUrl?: string };
+  nafdacNumber?: string;
+  expiryDate?: string;
+  nameAutoFilled?: boolean;
+  nafdacVerified?: boolean;
   createdAt?: string;
+  updatedAt?: string;
 }

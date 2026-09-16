@@ -1,43 +1,26 @@
+"use client";
+
+import { request } from "./client";
+
 export interface NafdacVerificationRecord {
-  number: string;
-  status: "valid" | "invalid" | "pending";
-  productName: string;
-  manufacturer: string;
-  productionDate: string;
-  activeIngredients: string;
-  expiryDate: string;
+  nafdacNumber: string;
+  found: boolean;
+  isValid?: boolean;
+  productName?: string;
+  expiryDate?: string;
+  manufacturer?: string;
 }
 
-const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
-const NAFDAC_ENDPOINT =
-  process.env.NEXT_PUBLIC_NAFDAC_VERIFICATION_ENDPOINT ??
-  `${API_ORIGIN}/api/v1/nafdac/verify`;
-
-
-
-export async function verifyNafdacNumber(
+/** POST /products/nafdac/verify — public, rate limited. */
+export function verifyNafdacNumber(
   number: string,
 ): Promise<NafdacVerificationRecord> {
-  const normalizedNumber = number.trim().toUpperCase();
-
-  if (!normalizedNumber) {
+  const normalized = number.trim().toUpperCase();
+  if (!normalized) {
     throw new Error("Enter a NAFDAC registration number.");
   }
-
-  const response = await fetch(NAFDAC_ENDPOINT, {
+  return request<NafdacVerificationRecord>("/products/nafdac/verify", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ number: normalizedNumber }),
+    body: JSON.stringify({ nafdacNumber: normalized }),
   });
-
-  const data: NafdacVerificationRecord & { error?: string; message?: string } =
-    await response.json().catch(() => ({} as NafdacVerificationRecord));
-
-  if (!response.ok) {
-    throw new Error(
-      data.error ?? data.message ?? "Unable to verify this NAFDAC number.",
-    );
-  }
-
-  return data;
 }
