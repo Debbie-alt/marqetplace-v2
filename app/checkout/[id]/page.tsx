@@ -1,5 +1,5 @@
 import { Checkout } from "@/features/checkout/checkout";
 
-export default async function CheckoutPage({ params }: PageProps<"/checkout/[id]">) {
+export default function CheckoutPage() {
   return <Checkout />;
 }
