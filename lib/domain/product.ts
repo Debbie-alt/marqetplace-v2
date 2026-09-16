@@ -23,6 +23,13 @@ export type Model3dStatus =
 
 export type LengthUnit = "CM" | "INCH" | "FEET";
 
+export type OrderStatus =
+  | "PENDING"
+  | "PROCESSING"
+  | "SHIPPED"
+  | "DELIVERED"
+  | "CANCELLED";
+
 export interface Category {
   _id: string;
   name: string;
@@ -57,6 +64,9 @@ export interface Product {
   modelProgress: number;
   productStatus?: ProductStatus;
   model3dStatus?: Model3dStatus;
+  widthValue?: number;
+  heightValue?: number;
+  sizeUnit?: LengthUnit;
 }
 
 export interface ProductModelGenerationStatus {

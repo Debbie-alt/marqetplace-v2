@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useProducts } from "@/hooks/use-products";
+import { useAuth } from "@/lib/auth/use-auth";
+import { NafdacVerification } from "@/components/verification/nafdac-verification";
 
 const sectionReveal = {
   hidden: { opacity: 0, y: 28 },
@@ -59,11 +61,6 @@ function ProductCard({
     >
       {/* Image */}
       <div className="relative flex h-[230px] items-center justify-center overflow-hidden bg-white p-6">
-        {/* Verification badge */}
-        <div className="absolute left-3 top-3 z-10 rounded-sm border border-emerald-300 bg-white px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-500">
-          ✓ Check authenticity
-        </div>
-
         {image ? (
           <img
             src={image}
@@ -75,11 +72,6 @@ function ProductCard({
             No image
           </div>
         )}
-
-        {/* 3D badge */}
-        <div className="absolute right-3 top-3 rounded bg-white px-2 py-1 text-[10px] font-bold uppercase shadow-sm">
-          View 3D
-        </div>
       </div>
 
       {/* Details */}
@@ -123,6 +115,7 @@ function ProductCard({
 
 export default function HomePage() {
   const { data: products = [], isLoading, isError } = useProducts();
+  const { isAuthenticated, logout } = useAuth();
 
   const featuredProducts = products.slice(0, 4);
 
@@ -159,14 +152,27 @@ export default function HomePage() {
           </nav>
 
           <div className="flex items-center gap-3">
-            <Link href="/seller/listings/new" className="px-4 py-1.5 text-sm  font-medium text-gray-700">
+            <Link href="/seller/listings/new" className="px-4 py-1.5 text-sm font-medium text-gray-700">
               Sell on marqetplace
             </Link>
-           
 
-            <Link href="/login" className="rounded-full bg-black px-4 py-1.5 text-sm font-medium text-white">
-              Sign in
-            </Link>
+            {isAuthenticated ? (
+              <>
+                <Link href="/seller/listings" className="px-4 py-1.5 text-sm font-medium text-gray-700">
+                  My Listings
+                </Link>
+                <button
+                  onClick={logout}
+                  className="rounded-full bg-black px-4 py-1.5 text-sm font-medium text-white"
+                >
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <Link href="/login" className="rounded-full bg-black px-4 py-1.5 text-sm font-medium text-white">
+                Sign in
+              </Link>
+            )}
           </div>
         </div>
       </header>
@@ -392,48 +398,8 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* Verification card */}
-            <div className="rounded-lg bg-[#211e1e] p-5 shadow-2xl">
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <span className="text-xs font-bold uppercase tracking-[0.2em] text-white">
-                  Product Verification Engine
-                </span>
-
-                <span className="rounded bg-emerald-950 px-2 py-1 text-[10px] text-emerald-400">
-                  ● Live Check
-                </span>
-              </div>
-
-              <div className="mt-5 flex gap-2">
-                <div className="flex-1 rounded border border-white/10 bg-black/20 px-4 py-3 text-xs text-gray-500">
-                  Enter NAFDAC No. e.g. A1-0243
-                </div>
-
-                <button className="bg-[#b9a5d0] px-5 text-xs font-black uppercase text-black transition hover:bg-[#cdbde0]">
-                  Verify →
-                </button>
-              </div>
-
-                <div className="mt-5 space-y-3 text-xs">
-                {[
-                  ["NAFDAC Number", "A1-0243"],
-                  ["Registration Status", "✓ Active & Valid"],
-                  ["Product Name", "Paracetamol 500mg Tablets"],
-                  ["Manufacturer", "Emzor Pharmaceuticals Ltd."],
-                  ["Production Date", "January 2025"],
-                  ["Active Ingredients", "Paracetamol 500mg"],
-                  ["Expiry Date", "December 2027"],
-                ].map(([label, value]) => (
-                  <div
-                    key={label}
-                    className="flex justify-between border-b border-white/5 pb-2"
-                  >
-                    <span className="uppercase text-gray-500">{label}</span>
-                    <span className="text-right text-gray-200">{value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            {/* Verification card — live NAFDAC check */}
+            <NafdacVerification />
           </div>
         </div>
       </motion.section>
@@ -559,7 +525,7 @@ export default function HomePage() {
 
           <div className="mt-12 flex justify-center">
             <Link
-              href="/products"
+              href="/storefront"
               className="rounded-full border border-black/40 px-7 py-2.5 text-xs font-medium text-gray-700 transition hover:bg-black hover:text-white"
             >
               Explore More Products

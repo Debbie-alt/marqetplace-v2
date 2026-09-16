@@ -44,6 +44,9 @@ function Topbar() {
         </span>
 
         <div className="ml-auto flex gap-3 text-[10px]">
+          <Link href="/seller/orders" className="rounded-full border px-3 py-1">
+            Orders
+          </Link>
           <Link href="/" className="rounded-full border px-3 py-1">
             ← Exit
           </Link>

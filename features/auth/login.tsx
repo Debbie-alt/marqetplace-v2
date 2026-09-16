@@ -53,7 +53,7 @@ export default function LoginPage() {
       {
         onSuccess: (response) => {
           storeSession(response.accessToken, response.user);
-          router.push("/");
+          router.push("/seller/listings/new");
         },
       },
     );
@@ -69,13 +69,17 @@ export default function LoginPage() {
         </div>
 
         <h1 className="mt-7 text-3xl font-black">
-          WELCOME BACK.
+          SELLER LOGIN
         </h1>
 
         <p className="mt-2 text-sm text-neutral-500">
-          Don&apos;t have an account?{" "}
+          Welcome back! Sign in to manage your listings.
+        </p>
+
+        <p className="mt-2 text-sm text-neutral-500">
+          New seller?{" "}
           <Link href="/signup" className="text-sky-600">
-            Sign up free →
+            Create your store →
           </Link>
         </p>
 

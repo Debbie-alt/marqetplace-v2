@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ShoppingCart, Store } from "lucide-react";
 import { FormEvent, useState } from "react";
-import { Brand, DarkInput, FieldLabel, PasswordInput, PrimaryButton,} from "@/components/ui";
+import { Brand, DarkInput, FieldLabel, PasswordInput, PrimaryButton } from "@/components/ui";
 
 import { useSignup } from "@/hooks/useSignup";
 import { storeSession } from "@/lib/auth/token";
@@ -26,19 +25,9 @@ function Segment() {
   );
 }
 
-function Divider({ children }: { children: string }) {
-  return (
-    <div className="my-7 flex items-center gap-4 text-[10px] font-medium uppercase tracking-wider text-neutral-400 before:h-px before:flex-1 before:bg-neutral-200 after:h-px after:flex-1 after:bg-neutral-200">
-      {children}
-    </div>
-  );
-}
-
 export default function SignupPage() {
   const router = useRouter();
   const { mutate, isPending, error } = useSignup();
-
-  const [seller, setSeller] = useState(true);
 
   const [form, setForm] = useState({
     firstName: "",
@@ -71,7 +60,7 @@ export default function SignupPage() {
       {
         onSuccess: (response) => {
           storeSession(response.accessToken, response.user);
-          router.push("/");
+          router.push("/seller/listings/new");
         },
       },
     );
@@ -81,7 +70,6 @@ export default function SignupPage() {
     <main className="min-h-screen bg-neutral-100 px-4 py-10 sm:px-6">
       <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-lg flex-col justify-center">
         <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
-          {/* Header */}
           <Segment />
 
           <div className="mt-8">
@@ -90,11 +78,15 @@ export default function SignupPage() {
 
           <div className="mt-7">
             <h1 className="text-3xl font-black tracking-tight text-neutral-900">
-              CREATE ACCOUNT.
+              CREATE SELLER ACCOUNT
             </h1>
 
             <p className="mt-3 text-sm leading-6 text-neutral-500">
-              Already have an account?{" "}
+              Start selling your products on marqetplace.
+            </p>
+
+            <p className="mt-2 text-sm text-neutral-500">
+              Already a seller?{" "}
               <Link
                 href="/login"
                 className="font-medium text-sky-600 hover:text-sky-700"
@@ -104,71 +96,8 @@ export default function SignupPage() {
             </p>
           </div>
 
-          {/* Account Type */}
-          <div className="mt-7">
-            <p className="mb-3 text-xs font-semibold text-neutral-700">
-              What are you here to do?
-            </p>
-
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setSeller(false)}
-                className={`rounded-xl border p-4 text-center transition ${
-                  !seller
-                    ? "border-sky-300 bg-sky-50 shadow-sm"
-                    : "border-neutral-200 bg-white hover:bg-neutral-50"
-                }`}
-              >
-                <ShoppingCart
-                  className={`mx-auto mb-2 size-5 ${
-                    !seller
-                      ? "text-sky-600"
-                      : "text-neutral-500"
-                  }`}
-                />
-
-                <b className="text-xs font-semibold text-neutral-800">
-                  I&apos;m a Buyer
-                </b>
-
-                <small className="mt-1.5 block text-[10px] leading-4 text-neutral-500">
-                  Shop verified products
-                </small>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSeller(true)}
-                className={`rounded-xl border p-4 text-center transition ${
-                  seller
-                    ? "border-sky-300 bg-sky-50 shadow-sm"
-                    : "border-neutral-200 bg-white hover:bg-neutral-50"
-                }`}
-              >
-                <Store
-                  className={`mx-auto mb-2 size-5 ${
-                    seller
-                      ? "text-sky-600"
-                      : "text-neutral-500"
-                  }`}
-                />
-
-                <b className="text-xs font-semibold text-neutral-800">
-                  I&apos;m a Seller
-                </b>
-
-                <small className="mt-1.5 block text-[10px] leading-4 text-neutral-500">
-                  List & sell products
-                </small>
-              </button>
-            </div>
-          </div>
-
-          <Divider>or sign up with email</Divider>
-
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="mt-7 space-y-5">
             <div className="grid gap-5 sm:grid-cols-2">
               <div>
                 <FieldLabel>First Name</FieldLabel>
@@ -259,11 +188,10 @@ export default function SignupPage() {
             >
               {isPending
                 ? "Creating…"
-                : "Create Account →"}
+                : "Create Seller Account →"}
             </PrimaryButton>
           </form>
 
-          {/* Terms */}
           <p className="mt-7 text-center text-[10px] leading-5 text-neutral-400">
             By creating an account you agree to our{" "}
             <a className="text-sky-600 hover:text-sky-700">
