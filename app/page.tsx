@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useProducts } from "@/hooks/use-products";
+import { useAuth } from "@/lib/auth/use-auth";
 
 const sectionReveal = {
   hidden: { opacity: 0, y: 28 },
@@ -123,6 +124,7 @@ function ProductCard({
 
 export default function HomePage() {
   const { data: products = [], isLoading, isError } = useProducts();
+  const { isAuthenticated, logout } = useAuth();
 
   const featuredProducts = products.slice(0, 4);
 
@@ -159,14 +161,27 @@ export default function HomePage() {
           </nav>
 
           <div className="flex items-center gap-3">
-            <Link href="/seller/listings/new" className="px-4 py-1.5 text-sm  font-medium text-gray-700">
+            <Link href="/seller/listings/new" className="px-4 py-1.5 text-sm font-medium text-gray-700">
               Sell on marqetplace
             </Link>
-           
 
-            <Link href="/login" className="rounded-full bg-black px-4 py-1.5 text-sm font-medium text-white">
-              Sign in
-            </Link>
+            {isAuthenticated ? (
+              <>
+                <Link href="/seller/listings" className="px-4 py-1.5 text-sm font-medium text-gray-700">
+                  My Listings
+                </Link>
+                <button
+                  onClick={logout}
+                  className="rounded-full bg-black px-4 py-1.5 text-sm font-medium text-white"
+                >
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <Link href="/login" className="rounded-full bg-black px-4 py-1.5 text-sm font-medium text-white">
+                Sign in
+              </Link>
+            )}
           </div>
         </div>
       </header>
