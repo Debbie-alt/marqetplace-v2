@@ -9,15 +9,32 @@ export function StorefrontHero() {
   const [checking, setChecking] = useState(false);
 
   async function verify() {
+    const value = number.trim();
+    if (!value) {
+      setMessage("Enter a NAFDAC registration number.");
+      return;
+    }
+
     setChecking(true);
-    const result = await verifyNafdacNumber(number);
-    const valid = result.found && (result.isValid === undefined || result.isValid);
-    setMessage(
-      valid && result.productName
-        ? `${result.productName} is Active & Valid.`
-        : "No valid NAFDAC record found."
-    );
-    setChecking(false);
+    setMessage("");
+    try {
+      const result = await verifyNafdacNumber(value);
+      const valid =
+        result.found && (result.isValid === undefined || result.isValid);
+      setMessage(
+        valid && result.productName
+          ? `${result.productName} is Active & Valid.`
+          : "No valid NAFDAC record found."
+      );
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to verify this NAFDAC number. Please try again."
+      );
+    } finally {
+      setChecking(false);
+    }
   }
 
   return (
