@@ -263,6 +263,48 @@ function Description({ product }: { product: Product }) {
   );
 }
 
+function NafdacDetailsCard({ product }: { product: Product }) {
+  const rows: Array<[string, string]> = [
+    ["NAFDAC Number", product.nafdacNumber ?? ""],
+    ["Registered Product Name", product.name],
+    ["Manufacturer", product.manufacturer ?? ""],
+    ["Expiry Date", product.expiryDate ? String(product.expiryDate).slice(0, 10) : ""],
+  ];
+
+  return (
+    <section className="mt-10 rounded-xl bg-neutral-900 text-white">
+      <div className="flex items-center justify-between border-b border-neutral-700 p-5">
+        <h2 className="text-xs font-black uppercase tracking-wide">
+          NAFDAC registration details
+        </h2>
+        <span
+          className={`rounded px-3 py-1 text-[9px] font-black ${
+            product.nafdacVerified
+              ? "border border-emerald-700 text-emerald-400"
+              : "border border-amber-600 text-amber-400"
+          }`}
+        >
+          {product.nafdacVerified ? "✓ VERIFIED" : "UNVERIFIED"}
+        </span>
+      </div>
+
+      <div className="p-5">
+        {rows.map(([label, value]) => (
+          <div
+            key={label}
+            className="grid grid-cols-[.8fr_1.2fr] gap-4 border-b border-neutral-700 py-3 text-xs last:border-0"
+          >
+            <span className="font-bold uppercase tracking-wide text-neutral-500">
+              {label}
+            </span>
+            <span className="text-right font-semibold">{value || "Not provided"}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export function ProductDetail({ id }: { id: string }) {
   const { data: product, isLoading } = useQuery({
     queryKey: ["product", id],
@@ -298,6 +340,8 @@ export function ProductDetail({ id }: { id: string }) {
 
             <ProductInfo product={product} />
           </div>
+
+          {product.nafdacNumber && <NafdacDetailsCard product={product} />}
 
           {product.isNafdacVerifiable && (
             <NafdacVerification initialNumber={product.nafdacNumber} />

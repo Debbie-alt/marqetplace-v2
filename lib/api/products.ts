@@ -168,6 +168,9 @@ function mapBackendProduct(backend: BackendProduct): Product {
     isNafdacVerifiable:
       categoryRequiresNafdac(backend) || Boolean(backend.nafdacVerified),
     nafdacNumber: backend.nafdacNumber,
+    nafdacVerified: backend.nafdacVerified,
+    expiryDate: backend.expiryDate,
+    manufacturer: backend.manufacturer,
     images,
     modelUrl,
     model3dUrl: modelUrl,

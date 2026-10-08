@@ -57,6 +57,9 @@ export interface Product {
   categoryId?: string;
   isNafdacVerifiable: boolean;
   nafdacNumber?: string;
+  nafdacVerified?: boolean;
+  expiryDate?: string;
+  manufacturer?: string;
   images: string[];
   modelUrl: string | null;
   model3dUrl?: string | null;
@@ -100,6 +103,7 @@ export interface BackendProduct {
   expiryDate?: string;
   nameAutoFilled?: boolean;
   nafdacVerified?: boolean;
+  manufacturer?: string;
   createdAt?: string;
   updatedAt?: string;
 }
