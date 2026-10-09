@@ -14,6 +14,7 @@ import { NafdacVerification } from "@/components/verification/nafdac-verificatio
 import type { Product } from "@/lib/domain/product";
 
 
+
 /* eslint-disable @next/next/no-img-element */
 
 
