@@ -13,7 +13,7 @@ import { getProductById } from "@/lib/api/products";
 import { NafdacVerification } from "@/components/verification/nafdac-verification";
 import type { Product } from "@/lib/domain/product";
 
-"use client";
+
 
 /* eslint-disable @next/next/no-img-element */
 
