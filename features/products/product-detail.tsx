@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-/* eslint-disable @next/next/no-img-element */
+ 
 
 import { ChevronLeft, ChevronRight, Heart, Minus, Plus } from "lucide-react";
 import { useState } from "react";
@@ -13,131 +13,212 @@ import { getProductById } from "@/lib/api/products";
 import { NafdacVerification } from "@/components/verification/nafdac-verification";
 import type { Product } from "@/lib/domain/product";
 
+"use client";
+
+/* eslint-disable @next/next/no-img-element */
+
+
 function ProductInfo({ product }: { product: Product }) {
   const [qty, setQty] = useState(1);
+
   return (
-    <section>
-      <div className="flex gap-2">
-        {product.isNafdacVerifiable && (
-          <span className="border border-emerald-500 px-3 py-1 text-[9px] font-black text-emerald-500">
-            ✓ NAFDAC VERIFIED
+    <section className="flex flex-col">
+      <div className="flex flex-wrap items-center gap-2">
+        {product.isNafdacVerifiable && product.nafdacVerified && (
+          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-600/40 bg-emerald-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-emerald-500">
+            <span className="text-sm leading-none">✓</span> NAFDAC Verified
           </span>
         )}
 
-        <span className="border border-neutral-500 px-3 py-1 text-[9px] font-black uppercase">
-          {product.category}
+        {product.isNafdacVerifiable && !product.nafdacVerified && (
+          <span className="inline-flex items-center gap-1 rounded-full border border-amber-600/40 bg-amber-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-amber-500">
+            NAFDAC Verifiable
+          </span>
+        )}
+
+        <span className="inline-flex items-center rounded-full border border-neutral-400/60 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-wide text-neutral-700">
+          {product.category || "Uncategorized"}
         </span>
       </div>
 
-      <h1 className="mt-5 max-w-sm text-3xl font-black uppercase leading-none">
+      <h1 className="mt-4 text-balance text-3xl font-black uppercase leading-[0.95] sm:text-4xl">
         {product.name}
       </h1>
 
-      <div className="mt-4 flex items-center gap-2 text-xs text-neutral-500">
+      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-neutral-600">
         <StarRating />
         <span>214 reviews</span>
-        <span>•</span>
+        <span className="text-neutral-400">•</span>
         <span>Marqetplace Official Store</span>
       </div>
 
-      <p className="mt-4 text-4xl font-black">{naira(product.price)}</p>
+      <div className="mt-6 flex items-end justify-between gap-4">
+        <p className="text-4xl font-black tracking-tight sm:text-5xl">
+          {naira(product.price)}
+        </p>
 
-      <span className="mt-2 inline-block rounded border border-red-900 bg-red-950/20 px-3 py-1 text-[10px] font-bold text-red-500">
-        15% OFF – LIMITED OFFER
-      </span>
+        <span className="inline-flex rounded-full border border-red-900/60 bg-red-950/20 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-red-500">
+          15% OFF – Limited Offer
+        </span>
+      </div>
 
-      <hr className="my-6" />
+      <hr className="my-6 border-neutral-300" />
 
       {product.size && (
-        <p className="mt-6 text-sm text-neutral-600">
-          Size: {product.size}
-        </p>
+        <div className="text-sm text-neutral-700">
+          <span className="font-semibold">Size:</span> {product.size}
+        </div>
       )}
 
-      <div className="mt-5 flex items-center gap-3">
-        <span className="text-[10px] font-black text-neutral-500">QTY</span>
+      <div className="mt-5 flex flex-wrap items-center gap-3">
+        <span className="text-[10px] font-black uppercase tracking-widest text-neutral-500">
+          Qty
+        </span>
 
-        <div className="flex border">
+        <div className="flex items-center overflow-hidden rounded-lg border border-neutral-300 bg-white shadow-sm">
           <button
             disabled={qty === 1}
             onClick={() => setQty(qty - 1)}
-            className="p-2"
+            className="grid h-9 w-9 place-items-center transition hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-40"
+            aria-label="Decrease quantity"
           >
-            <Minus className="size-3" />
+            <Minus className="size-3.5" />
           </button>
 
-          <span className="min-w-8 p-2 text-center text-sm">{qty}</span>
+          <span className="min-w-10 px-2 py-2 text-center text-sm font-semibold tabular-nums">
+            {qty}
+          </span>
 
           <button
             onClick={() => setQty(qty + 1)}
-            className="p-2"
+            className="grid h-9 w-9 place-items-center transition hover:bg-neutral-50"
+            aria-label="Increase quantity"
           >
-            <Plus className="size-3" />
+            <Plus className="size-3.5" />
           </button>
         </div>
       </div>
 
-      <div className="mt-5 flex gap-3">
-        <CartButton className="flex-1">ADD TO CART</CartButton>
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+        <CartButton className="flex-1">Add to Cart</CartButton>
 
-        <button className="border px-4">
-          <Heart className="size-5" />
+        <button
+          className="flex items-center justify-center gap-2 rounded-lg border border-neutral-300 bg-white px-4 py-3 text-sm font-semibold transition hover:bg-neutral-50 active:scale-[0.995]"
+          aria-label="Add to wishlist"
+        >
+          <Heart className="size-4" />
+          <span>Wishlist</span>
         </button>
       </div>
 
       <Link
         href={`/checkout/${product.id}`}
-        className="mt-3 block rounded bg-neutral-100 py-4 text-center text-sm font-black"
+        className="mt-3 block rounded-lg bg-neutral-900 py-4 text-center text-sm font-black uppercase tracking-wide text-white shadow-sm transition hover:bg-neutral-800 active:scale-[0.995]"
       >
-        BUY NOW
+        Buy Now
       </Link>
+
+      <p className="mt-4 text-xs leading-relaxed text-neutral-600">
+        Listed by a verified seller. Product information is reviewed for clarity
+        and accuracy.
+      </p>
     </section>
   );
 }
 
 function Gallery({ product }: { product: Product }) {
+  const images = product.images?.length ? product.images : ["/window.svg"];
+  const [active, setActive] = useState(0);
+
   return (
-    <section>
-      <div className="aspect-square bg-neutral-100">
+    <section className="flex flex-col">
+      <div className="relative aspect-square overflow-hidden rounded-2xl border border-neutral-300 bg-white shadow-sm">
         <img
-          src={product.images[0] ?? "/window.svg"}
+          src={images[active] ?? "/window.svg"}
           alt={product.name}
-          className="size-full object-cover"
+          className="size-full object-contain p-4 sm:p-6"
         />
+
+        {images.length > 1 && (
+          <>
+            <button
+              onClick={() =>
+                setActive((i) => (i === 0 ? images.length - 1 : i - 1))
+              }
+              className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full border border-neutral-300 bg-white/90 p-2 shadow-sm transition hover:bg-white"
+              aria-label="Previous image"
+            >
+              <ChevronLeft className="size-4" />
+            </button>
+
+            <button
+              onClick={() =>
+                setActive((i) => (i === images.length - 1 ? 0 : i + 1))
+              }
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-neutral-300 bg-white/90 p-2 shadow-sm transition hover:bg-white"
+              aria-label="Next image"
+            >
+              <ChevronRight className="size-4" />
+            </button>
+          </>
+        )}
       </div>
 
-      <div className="mt-3 flex justify-center gap-12">
-        <ChevronLeft />
-        <ChevronRight />
-      </div>
+      {images.length > 1 && (
+        <div className="mt-4 flex flex-wrap justify-center gap-2">
+          {images.map((src, idx) => (
+            <button
+              key={idx}
+              onClick={() => setActive(idx)}
+              className={`size-14 overflow-hidden rounded-lg border transition ${
+                idx === active
+                  ? "border-neutral-900 ring-2 ring-neutral-900/10"
+                  : "border-neutral-300 hover:border-neutral-400"
+              }`}
+              aria-label={`View image ${idx + 1}`}
+            >
+              <img
+                src={src}
+                alt={`${product.name} ${idx + 1}`}
+                className="size-full object-cover"
+              />
+            </button>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
 function ViewerCard({ product }: { product: Product }) {
   if (product.modelStatus === "generating" || product.modelStatus === "queued") {
     return (
-      <section className="mx-auto mt-12 max-w-xl rounded-xl bg-neutral-900 p-4 text-white">
-        <span className="rounded border border-sky-300 px-2 py-1 text-[9px] font-bold text-sky-200">
-          ● 3D GENERATING
-        </span>
+      <section className="mx-auto mt-12 w-full max-w-3xl overflow-hidden rounded-2xl border border-neutral-300 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-neutral-300 px-5 py-3">
+          <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-neutral-800">
+            <span className="inline-block size-2 animate-pulse rounded-full bg-sky-400" />
+            3D Generating
+          </div>
 
-        <div className="mt-4 aspect-video rounded bg-neutral-800">
-          <div className="flex h-full flex-col items-center justify-center">
-            <div className="text-sm font-bold">
-              Generating 3D model...
-            </div>
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">
+            {product.modelProgress}% complete
+          </span>
+        </div>
 
-            <div className="mt-3 h-2 w-48 overflow-hidden rounded-full bg-neutral-700">
+        <div className="aspect-video bg-neutral-50">
+          <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
+            <p className="text-sm font-semibold text-neutral-800">
+              Generating interactive 3D model…
+            </p>
+
+            <div className="h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-neutral-200">
               <div
-                className="h-full bg-sky-300 transition-all"
-                style={{
-                  width: `${product.modelProgress}%`,
-                }}
+                className="h-full bg-sky-400 transition-all duration-500"
+                style={{ width: `${product.modelProgress}%` }}
               />
             </div>
 
-            <p className="mt-2 text-xs text-neutral-400">
-              {product.modelProgress}% complete
+            <p className="text-xs text-neutral-500">
+              This usually takes a moment. You can refresh this page in a bit.
             </p>
           </div>
         </div>
@@ -147,10 +228,20 @@ function ViewerCard({ product }: { product: Product }) {
 
   if (product.modelStatus === "failed") {
     return (
-      <section className="mx-auto mt-12 max-w-xl rounded-xl bg-neutral-900 p-6 text-center text-white">
-        <p className="text-sm font-bold">
-          3D model generation failed.
-        </p>
+      <section className="mx-auto mt-12 w-full max-w-3xl overflow-hidden rounded-2xl border border-red-300 bg-white shadow-sm">
+        <div className="border-b border-red-300 px-5 py-3 text-xs font-black uppercase tracking-wide text-red-700">
+          3D Generation Failed
+        </div>
+
+        <div className="flex flex-col items-center justify-center gap-2 px-6 py-10 text-center">
+          <p className="text-sm font-semibold text-neutral-800">
+            We couldn&apos;t generate this 3D model.
+          </p>
+
+          <p className="text-xs text-neutral-600">
+            Try refreshing, or check back later.
+          </p>
+        </div>
       </section>
     );
   }
@@ -160,38 +251,41 @@ function ViewerCard({ product }: { product: Product }) {
   }
 
   return (
-    <section className="mx-auto mt-12 max-w-xl rounded-xl bg-neutral-900 p-4 text-white">
-      <span className="rounded border border-sky-300 px-2 py-1 text-[9px] font-bold text-sky-200">
-        ● 3D LIVE
-      </span>
+    <section className="mx-auto mt-12 w-full max-w-3xl overflow-hidden rounded-2xl border border-neutral-300 bg-white shadow-sm">
+      <div className="flex items-center justify-between border-b border-neutral-300 px-5 py-3">
+        <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-neutral-800">
+          <span className="inline-block size-2 rounded-full bg-sky-400" />
+          Interactive 3D
+        </div>
 
-      <div className="mt-4 overflow-hidden rounded bg-neutral-800">
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">
+          Drag • Scroll • Pinch
+        </span>
+      </div>
+
+      <div className="overflow-hidden bg-neutral-50">
         <ProductViewer
           modelUrl={product.modelUrl}
           productName={product.name}
           className="!aspect-video !rounded-none"
         />
       </div>
-
-      <p className="my-3 text-center text-[8px] text-neutral-400">
-        DRAG TO ROTATE · SCROLL TO ZOOM · PINCH ON MOBILE
-      </p>
     </section>
   );
 }
 
 function Description({ product }: { product: Product }) {
-  const [tab, setTab] = useState("description");
+  const [tab, setTab] = useState<"description" | "reviews">("description");
 
   return (
-    <section className="mt-12 border border-neutral-300 bg-white">
-      <div className="flex gap-8 border-b px-8">
+    <section className="mt-12 overflow-hidden rounded-2xl border border-neutral-300 bg-white shadow-sm">
+      <div className="flex gap-8 border-b border-neutral-300 px-6 sm:px-8">
         <button
           onClick={() => setTab("description")}
-          className={`border-b-2 py-5 text-xs font-black uppercase ${
+          className={`relative border-b-2 py-5 text-xs font-black uppercase tracking-wide transition ${
             tab === "description"
-              ? "border-sky-300 text-sky-700"
-              : "border-transparent"
+              ? "border-sky-400 text-neutral-900"
+              : "border-transparent text-neutral-500 hover:text-neutral-700"
           }`}
         >
           Description
@@ -199,59 +293,71 @@ function Description({ product }: { product: Product }) {
 
         <button
           onClick={() => setTab("reviews")}
-          className="py-5 text-xs font-black uppercase"
+          className={`relative border-b-2 py-5 text-xs font-black uppercase tracking-wide transition ${
+            tab === "reviews"
+              ? "border-sky-400 text-neutral-900"
+              : "border-transparent text-neutral-500 hover:text-neutral-700"
+          }`}
         >
           Reviews (214)
         </button>
       </div>
 
-      <div className="p-8 text-sm leading-7 text-neutral-700">
+      <div className="px-6 py-6 text-sm leading-7 text-neutral-700 sm:px-8 sm:py-8">
         {tab === "description" ? (
-          <>
-            <p>{product.description}</p>
-
-            <p className="mt-4">
-              Each product is listed by a verified seller and reviewed for
-              clear, reliable marketplace information.
-            </p>
-
-            <p className="mt-4 font-semibold">Dosage:</p>
+          <div className="space-y-4">
+            <p className="whitespace-pre-line text-pretty">{product.description}</p>
 
             <p>
-              Follow the product label and professional guidance before use.
+              Each product is listed by a verified seller and reviewed for clear,
+              reliable marketplace information.
             </p>
-          </>
+
+            <div>
+              <p className="font-semibold text-neutral-900">Dosage</p>
+
+              <p>
+                Follow the product label and consult a qualified professional
+                before use where applicable.
+              </p>
+            </div>
+          </div>
         ) : (
-          <p>Reviews will appear here when available.</p>
+          <p className="text-neutral-600">Reviews will appear here when available.</p>
         )}
       </div>
 
-      <div className="border-t p-8">
-        <div className="mb-6 flex justify-between">
-          <h2 className="text-2xl font-black uppercase">
+      <div className="border-t border-neutral-300 px-6 py-6 sm:px-8 sm:py-8">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-balance text-2xl font-black uppercase tracking-tight sm:text-3xl">
             More products from store
           </h2>
 
-          <Link href="/" className="text-xs font-black">
-            VIEW ALL →
+          <Link
+            href="/"
+            className="text-xs font-black uppercase tracking-wide text-neutral-700 transition hover:text-neutral-900"
+          >
+            View All →
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 gap-px bg-neutral-400 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-1 overflow-hidden rounded-xl border border-neutral-300 bg-neutral-300 sm:grid-cols-4">
           {["Vitamin C", "Chloroquine", "Amoxicillin", "Ibuprofen"].map(
             (x, i) => (
               <Link
                 href="/"
                 key={x}
-                className="bg-neutral-900 p-5 text-white"
+                className="group bg-white p-4 transition hover:bg-neutral-50 sm:p-5"
               >
-                <div className="grid aspect-video place-items-center bg-neutral-800 text-3xl">
+                <div className="grid aspect-video place-items-center rounded-lg bg-neutral-50 text-3xl shadow-inner ring-1 ring-inset ring-neutral-200">
                   {["💉", "🩺", "💊", "🧪"][i]}
                 </div>
 
-                <p className="mt-3 text-xs font-bold">{x}</p>
+                <p className="mt-3 line-clamp-1 text-xs font-semibold text-neutral-900">
+                  {x}
+                </p>
 
-                <p className="mt-1 text-lg font-black text-sky-200">
+                <p className="mt-1 text-lg font-black text-sky-700">
                   {naira([850, 1200, 2800, 3600][i])}
                 </p>
               </Link>
@@ -265,39 +371,51 @@ function Description({ product }: { product: Product }) {
 
 function NafdacDetailsCard({ product }: { product: Product }) {
   const rows: Array<[string, string]> = [
-    ["NAFDAC Number", product.nafdacNumber ?? ""],
+    ["NAFDAC Registration Number", product.nafdacNumber ?? ""],
     ["Registered Product Name", product.name],
-    ["Manufacturer", product.manufacturer ?? ""],
+    ["Manufacturer / Applicant", product.manufacturer ?? ""],
     ["Expiry Date", product.expiryDate ? String(product.expiryDate).slice(0, 10) : ""],
   ];
 
+  const verified = Boolean(product.nafdacVerified);
+
   return (
-    <section className="mt-10 rounded-xl bg-neutral-900 text-white">
-      <div className="flex items-center justify-between border-b border-neutral-700 p-5">
-        <h2 className="text-xs font-black uppercase tracking-wide">
-          NAFDAC registration details
-        </h2>
+    <section className="mt-10 overflow-hidden rounded-2xl border border-neutral-300 bg-white shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-300 px-5 py-4 sm:px-6">
+        <div>
+          <h2 className="text-xs font-black uppercase tracking-wide text-neutral-900">
+            NAFDAC Registration Details
+          </h2>
+
+          <p className="mt-1 text-xs text-neutral-600">
+            Pulled from the official NAFDAC Greenbook registry.
+          </p>
+        </div>
+
         <span
-          className={`rounded px-3 py-1 text-[9px] font-black ${
-            product.nafdacVerified
-              ? "border border-emerald-700 text-emerald-400"
-              : "border border-amber-600 text-amber-400"
+          className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wide ${
+            verified
+              ? "border border-emerald-600/40 bg-emerald-500/10 text-emerald-600"
+              : "border border-amber-600/40 bg-amber-500/10 text-amber-600"
           }`}
         >
-          {product.nafdacVerified ? "✓ VERIFIED" : "UNVERIFIED"}
+          {verified ? "✓ Verified" : "Not Verified"}
         </span>
       </div>
 
-      <div className="p-5">
+      <div className="px-5 py-2 sm:px-6">
         {rows.map(([label, value]) => (
           <div
             key={label}
-            className="grid grid-cols-[.8fr_1.2fr] gap-4 border-b border-neutral-700 py-3 text-xs last:border-0"
+            className="grid grid-cols-1 gap-1 border-b border-neutral-200 py-3 last:border-0 sm:grid-cols-[0.9fr_1.1fr] sm:gap-4 sm:items-center"
           >
-            <span className="font-bold uppercase tracking-wide text-neutral-500">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">
               {label}
             </span>
-            <span className="text-right font-semibold">{value || "Not provided"}</span>
+
+            <span className="text-sm font-semibold text-neutral-900 sm:text-right">
+              {value || "Not provided"}
+            </span>
           </div>
         ))}
       </div>
@@ -315,7 +433,19 @@ export function ProductDetail({ id }: { id: string }) {
     return (
       <>
         <Header />
-        <p className="p-10">Loading product…</p>
+        <main className="bg-neutral-50 px-4 py-10">
+          <div className="mx-auto max-w-6xl">
+            <div className="h-8 w-48 animate-pulse rounded bg-neutral-200" />
+            <div className="mt-6 grid gap-10 md:grid-cols-2">
+              <div className="aspect-square animate-pulse rounded-2xl bg-neutral-200" />
+              <div className="space-y-4">
+                <div className="h-10 w-3/4 animate-pulse rounded bg-neutral-200" />
+                <div className="h-6 w-1/2 animate-pulse rounded bg-neutral-200" />
+                <div className="h-20 w-full animate-pulse rounded-xl bg-neutral-200" />
+              </div>
+            </div>
+          </div>
+        </main>
       </>
     );
   }
@@ -324,7 +454,22 @@ export function ProductDetail({ id }: { id: string }) {
     return (
       <>
         <Header />
-        <p className="p-10">Product not found.</p>
+        <main className="bg-neutral-50 px-4 py-16">
+          <div className="mx-auto max-w-xl text-center">
+            <h1 className="text-2xl font-black uppercase tracking-tight">
+              Product Not Found
+            </h1>
+            <p className="mt-2 text-sm text-neutral-600">
+              This product may have been removed or is no longer available.
+            </p>
+            <Link
+              href="/"
+              className="mt-6 inline-flex items-center justify-center rounded-lg bg-neutral-900 px-6 py-3 text-sm font-black uppercase tracking-wide text-white transition hover:bg-neutral-800"
+            >
+              Back to Home
+            </Link>
+          </div>
+        </main>
       </>
     );
   }
@@ -333,7 +478,7 @@ export function ProductDetail({ id }: { id: string }) {
     <>
       <Header />
 
-      <main className="bg-neutral-100 px-4 py-8">
+      <main className="min-h-screen bg-neutral-50 px-4 py-8">
         <div className="mx-auto max-w-6xl">
           <div className="grid gap-10 md:grid-cols-2">
             <Gallery product={product} />
