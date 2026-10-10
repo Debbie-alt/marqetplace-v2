@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
 import {
   Brand,
@@ -14,12 +14,13 @@ import {
 
 import { useLogin } from "@/hooks/useLogin";
 import { storeSession } from "@/lib/auth/token";
+import { useAuth } from "@/lib/auth/use-auth";
 
 function Segment() {
   return (
     <div className="grid grid-cols-2 rounded-full bg-neutral-900 p-1 text-center text-xs font-black">
       <Link
-        className="rounded-full bg-sky-200 py-3 text-neutral-900"
+      className="rounded-full bg-violet-300 py-3 text-neutral-950 shadow-sm transition hover:bg-violet-200"
         href="/login"
       >
         Sign In
@@ -37,7 +38,12 @@ function Segment() {
 
 export default function LoginPage() {
   const router = useRouter();
+  const { isAuthenticated } = useAuth();
   const { mutate, isPending, error } = useLogin();
+
+  useEffect(() => {
+    if (isAuthenticated) router.replace("/seller/dashboard");
+  }, [isAuthenticated, router]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -53,22 +59,22 @@ export default function LoginPage() {
       {
         onSuccess: (response) => {
           storeSession(response.accessToken, response.user);
-          router.push("/seller/listings/new");
+          router.replace("/seller/dashboard");
         },
       },
     );
   }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-neutral-200 p-5">
-      <div className="w-full max-w-lg bg-white p-8 shadow-sm sm:p-10">
+    <main className="grid min-h-screen place-items-center bg-[#f5f2f8] p-5">
+      <div className="w-full max-w-lg rounded-2xl border border-neutral-200 bg-white p-8 shadow-[0_18px_60px_rgba(38,29,52,.08)] sm:p-10">
         <Segment />
 
         <div className="mt-5">
           <Brand />
         </div>
 
-        <h1 className="mt-7 text-3xl font-black">
+        <h1 className="font-museo mt-7 text-3xl font-bold tracking-tight">
           SELLER LOGIN
         </h1>
 
@@ -78,7 +84,7 @@ export default function LoginPage() {
 
         <p className="mt-2 text-sm text-neutral-500">
           New seller?{" "}
-          <Link href="/signup" className="text-sky-600">
+          <Link href="/signup" className="font-medium text-violet-500 transition hover:text-violet-600">
             Create your store →
           </Link>
         </p>
@@ -102,7 +108,7 @@ export default function LoginPage() {
 
               <Link
                 href="/forgot-password"
-                className="text-[10px] text-sky-600"
+                className="text-xs text-violet-500 transition hover:text-violet-600"
               >
                 Forgot password?
               </Link>
@@ -133,9 +139,9 @@ export default function LoginPage() {
 
         <p className="mt-5 text-center text-[9px] text-neutral-500">
           By signing in you agree to our{" "}
-          <a className="text-sky-600">Terms of Service</a>{" "}
+              <a className="text-violet-500">Terms of Service</a>{" "}
           and{" "}
-          <a className="text-sky-600">Privacy Policy</a>.
+              <a className="text-violet-500">Privacy Policy</a>.
         </p>
       </div>
 

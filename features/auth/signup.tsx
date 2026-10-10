@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Brand, DarkInput, FieldLabel, PasswordInput, PrimaryButton } from "@/components/ui";
 
 import { useSignup } from "@/hooks/useSignup";
 import { storeSession } from "@/lib/auth/token";
+import { useAuth } from "@/lib/auth/use-auth";
 
 function Segment() {
   return (
@@ -17,7 +18,7 @@ function Segment() {
       </Link>
 
       <Link
-        className="rounded-full bg-sky-100 py-3 text-neutral-900 shadow-sm"
+        className="rounded-full bg-violet-300 py-3 text-neutral-950 shadow-sm transition hover:bg-violet-200"
         href="/signup" >
         Create Account
       </Link>
@@ -27,7 +28,12 @@ function Segment() {
 
 export default function SignupPage() {
   const router = useRouter();
+  const { isAuthenticated } = useAuth();
   const { mutate, isPending, error } = useSignup();
+
+  useEffect(() => {
+    if (isAuthenticated) router.replace("/seller/dashboard");
+  }, [isAuthenticated, router]);
 
   const [form, setForm] = useState({
     firstName: "",
@@ -60,16 +66,16 @@ export default function SignupPage() {
       {
         onSuccess: (response) => {
           storeSession(response.accessToken, response.user);
-          router.push("/seller/listings/new");
+          router.replace("/seller/dashboard");
         },
       },
     );
   }
 
   return (
-    <main className="min-h-screen bg-neutral-100 px-4 py-10 sm:px-6">
+    <main className="min-h-screen bg-[#f5f2f8] px-4 py-10 sm:px-6">
       <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-lg flex-col justify-center">
-        <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
+        <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-[0_18px_60px_rgba(38,29,52,.08)] sm:p-8">
           <Segment />
 
           <div className="mt-8">
@@ -77,7 +83,7 @@ export default function SignupPage() {
           </div>
 
           <div className="mt-7">
-            <h1 className="text-3xl font-black tracking-tight text-neutral-900">
+            <h1 className="font-museo text-3xl font-bold tracking-tight text-neutral-900">
               CREATE SELLER ACCOUNT
             </h1>
 
@@ -89,7 +95,7 @@ export default function SignupPage() {
               Already a seller?{" "}
               <Link
                 href="/login"
-                className="font-medium text-sky-600 hover:text-sky-700"
+                className="font-medium text-violet-500 transition hover:text-violet-600"
               >
                 Sign in →
               </Link>
@@ -194,15 +200,15 @@ export default function SignupPage() {
 
           <p className="mt-7 text-center text-[10px] leading-5 text-neutral-400">
             By creating an account you agree to our{" "}
-            <a className="text-sky-600 hover:text-sky-700">
+            <a className="text-violet-500 hover:text-violet-600">
               Terms of Service
             </a>
             ,{" "}
-            <a className="text-sky-600 hover:text-sky-700">
+            <a className="text-violet-500 hover:text-violet-600">
               Privacy Policy
             </a>
             , and{" "}
-            <a className="text-sky-600 hover:text-sky-700">
+            <a className="text-violet-500 hover:text-violet-600">
               Seller Policy
             </a>
             .
