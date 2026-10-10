@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Loader2 } from "lucide-react";
 
 import { useNafdacVerification } from "@/hooks/use-nafdac-verification";
 
@@ -48,16 +49,16 @@ export function NafdacVerification({
           <input
             value={number}
             onChange={(event) => setNumber(event.target.value)}
-            className="min-w-0 flex-1 bg-neutral-950 p-4 text-sm outline-none"
+            className="min-w-0 flex-1 rounded-xl border border-neutral-700 bg-neutral-950 p-4 text-sm outline-none transition placeholder:text-neutral-500 focus:border-violet-300 focus:ring-4 focus:ring-violet-300/15"
             placeholder="Enter NAFDAC number"
             aria-label="NAFDAC registration number"
           />
           <button
             type="submit"
             disabled={verification.isPending || !number.trim()}
-            className="rounded-full bg-sky-200 px-5 py-3 text-xs font-black text-neutral-900 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-xl bg-violet-300 px-5 py-3 text-xs font-semibold text-neutral-950 transition hover:bg-violet-200 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {verification.isPending ? "CHECKING..." : "VERIFY"}
+            {verification.isPending ? <><Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" /> Checking…</> : "Verify"}
           </button>
         </form>
 
