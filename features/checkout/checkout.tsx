@@ -79,7 +79,7 @@ export function Checkout() {
 
             <Link
               href="/storefront"
-              className="flex flex-1 items-center justify-center rounded-full bg-amber-500 px-5 py-3 text-xs font-bold text-neutral-950 transition hover:bg-amber-400"
+              className="flex flex-1 items-center justify-center rounded-full bg-violet-300 px-5 py-3 text-xs font-semibold text-neutral-950 shadow-sm transition hover:bg-violet-200 active:scale-[.98]"
             >
               Keep Shopping
             </Link>
