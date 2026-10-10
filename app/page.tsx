@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useProducts } from "@/hooks/use-products";
 import { useAuth } from "@/lib/auth/use-auth";
@@ -115,7 +117,12 @@ function ProductCard({
 
 export default function HomePage() {
   const { data: products = [], isLoading, isError } = useProducts();
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isAuthenticated) router.replace("/seller/dashboard");
+  }, [isAuthenticated, router]);
 
   const featuredProducts = products.slice(0, 4);
 
@@ -152,26 +159,15 @@ export default function HomePage() {
           </nav>
 
           <div className="flex items-center gap-3">
-            <Link href="/seller/listings/new" className="px-4 py-1.5 text-sm font-medium text-gray-700">
-              Sell on marqetplace
-            </Link>
-
             {isAuthenticated ? (
-              <>
-                <Link href="/seller/listings" className="px-4 py-1.5 text-sm font-medium text-gray-700">
-                  My Listings
-                </Link>
-                <button
-                  onClick={logout}
-                  className="rounded-full bg-black px-4 py-1.5 text-sm font-medium text-white"
-                >
-                  Sign Out
-                </button>
-              </>
-            ) : (
-              <Link href="/login" className="rounded-full bg-black px-4 py-1.5 text-sm font-medium text-white">
-                Sign in
+              <Link href="/seller/dashboard" className="rounded-full bg-black px-4 py-1.5 text-sm font-medium text-white transition hover:bg-neutral-700">
+                Dashboard
               </Link>
+            ) : (
+              <>
+                <Link href="/seller/listings/new" className="px-4 py-1.5 text-sm font-medium text-gray-700">Sell on marqetplace</Link>
+                <Link href="/login" className="rounded-full bg-black px-4 py-1.5 text-sm font-medium text-white transition hover:bg-neutral-700">Sign in</Link>
+              </>
             )}
           </div>
         </div>
@@ -193,7 +189,7 @@ export default function HomePage() {
           <div className="landing-reveal landing-reveal-delay-2 mt-10 flex gap-8">
             <Link
               href="/storefront"
-              className="rounded-full bg-[#f59a23] px-8 py-3 text-xs font-semibold uppercase text-white shadow-sm transition hover:bg-[#df8411]"
+              className="rounded-full bg-violet-300 px-8 py-3 text-xs font-semibold uppercase text-neutral-950 shadow-sm transition hover:bg-violet-200 active:scale-[.98]"
             >
               Shop Now
             </Link>
