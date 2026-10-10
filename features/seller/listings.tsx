@@ -188,8 +188,8 @@ export function SellerListings() {
   const products = data?.products ?? [];
 
   return (
-    <main className="min-h-screen bg-neutral-100">
-      <header className="border-b bg-white px-6 py-3">
+    <main className="min-h-screen bg-[#f7f5fa]">
+      <header className="border-b border-neutral-200 bg-white px-4 py-3 sm:px-6">
         <div className="mx-auto flex max-w-5xl items-center gap-4">
           <Brand />
 
@@ -201,7 +201,7 @@ export function SellerListings() {
             <Link href="/seller/orders" className="rounded-full border px-3 py-1">
               Orders
             </Link>
-            <Link href="/" className="rounded-full border px-3 py-1">
+            <Link href="/storefront" className="rounded-full border border-neutral-200 px-3 py-2 text-xs transition hover:border-violet-300 hover:bg-violet-50">
               ← Exit
             </Link>
           </div>
@@ -219,7 +219,7 @@ export function SellerListings() {
 
           <Link
             href="/seller/listings/new"
-            className="flex items-center gap-2 rounded-full bg-amber-500 px-5 py-2.5 text-sm font-black text-neutral-950 transition hover:bg-amber-400"
+            className="flex items-center gap-2 rounded-full bg-violet-300 px-5 py-2.5 text-sm font-semibold text-neutral-950 shadow-sm transition hover:bg-violet-200 active:scale-[.98]"
           >
             <Plus className="size-4" />
             New Listing
@@ -250,7 +250,7 @@ export function SellerListings() {
               </p>
               <Link
                 href="/seller/listings/new"
-                className="mt-6 inline-flex items-center gap-2 rounded-full bg-amber-500 px-6 py-3 text-sm font-black text-neutral-950 transition hover:bg-amber-400"
+                className="mt-6 inline-flex items-center gap-2 rounded-full bg-violet-300 px-6 py-3 text-sm font-semibold text-neutral-950 shadow-sm transition hover:bg-violet-200 active:scale-[.98]"
               >
                 <Plus className="size-4" />
                 Create your first listing

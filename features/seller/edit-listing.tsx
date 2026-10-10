@@ -76,7 +76,7 @@ function ProductForm({
           placeholder="Describe your product…"
           required
           rows={4}
-          className="w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none placeholder:text-neutral-400 focus:ring-2 focus:ring-amber-400"
+          className="w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none transition placeholder:text-neutral-400 focus:border-violet-300 focus:ring-4 focus:ring-violet-300/15"
         />
       </div>
 
@@ -89,7 +89,7 @@ function ProductForm({
           value={form.price}
           onChange={(event) => setForm((prev) => ({ ...prev, price: event.target.value }))}
           required
-          className="bg-white text-neutral-900 focus:ring-amber-400"
+          className="bg-white text-neutral-900 focus:border-violet-300 focus:ring-violet-300/20"
         />
       </div>
 
@@ -103,7 +103,7 @@ function ProductForm({
             placeholder="e.g. 20"
             value={form.widthValue}
             onChange={(event) => setForm((prev) => ({ ...prev, widthValue: event.target.value }))}
-            className="bg-white text-neutral-900 focus:ring-amber-400"
+            className="bg-white text-neutral-900 focus:border-violet-300 focus:ring-violet-300/20"
           />
         </div>
 
@@ -116,7 +116,7 @@ function ProductForm({
             placeholder="e.g. 30"
             value={form.heightValue}
             onChange={(event) => setForm((prev) => ({ ...prev, heightValue: event.target.value }))}
-            className="bg-white text-neutral-900 focus:ring-amber-400"
+            className="bg-white text-neutral-900 focus:border-violet-300 focus:ring-violet-300/20"
           />
         </div>
 
@@ -130,7 +130,7 @@ function ProductForm({
                 onClick={() => setForm((prev) => ({ ...prev, sizeUnit: unit }))}
                 className={`flex-1 rounded-lg px-2 py-2 text-xs font-bold transition ${
                   form.sizeUnit === unit
-                    ? "bg-amber-500 text-neutral-950"
+                    ? "bg-violet-300 text-neutral-950"
                     : "text-neutral-500 hover:bg-neutral-100"
                 }`}
               >
@@ -190,17 +190,17 @@ export function EditListing() {
   const product = productQuery.data;
 
   return (
-    <main className="min-h-screen bg-neutral-100">
-      <header className="border-b bg-white px-6 py-3">
+    <main className="min-h-screen bg-[#f7f5fa]">
+      <header className="border-b border-neutral-200 bg-white px-4 py-3 sm:px-6">
         <div className="mx-auto flex max-w-5xl items-center gap-4">
           <Brand />
 
-          <span className="text-[10px] text-neutral-500">
+          <span className="hidden text-xs text-neutral-500 sm:inline">
             Seller Dashboard → Edit Listing
           </span>
 
           <div className="ml-auto flex gap-3 text-[10px]">
-            <Link href="/seller/listings" className="rounded-full border px-3 py-1">
+            <Link href="/seller/listings" className="rounded-full border border-neutral-200 px-3 py-2 text-xs transition hover:border-violet-300 hover:bg-violet-50">
               ← Back to Listings
             </Link>
           </div>
